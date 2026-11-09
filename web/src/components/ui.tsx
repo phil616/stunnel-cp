@@ -7,17 +7,14 @@ import {
   Tooltip,
 } from "@mantine/core";
 import type { ReactNode } from "react";
-import { Shield, Plus } from "lucide-react";
+import { Network, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { certificateState } from "../api";
 import type { Certificate } from "../api";
 export function Brand() {
   return (
     <div className="brand">
-      <span className="brand-symbol">
-        <Shield size={23} strokeWidth={1.8} />
-        <span />
-      </span>
+      <Network className="brand-icon" size={36} aria-hidden="true" />
       <div>stunnel</div>
     </div>
   );

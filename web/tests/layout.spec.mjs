@@ -85,7 +85,7 @@ test("响应式布局：操作可达、字段对齐及弹窗滚动", async ({ pa
     const content = await dialog.locator(".dialog-content").boundingBox();
     expect(content.y + content.height).toBeLessThanOrEqual(box.y + 1);
   }
-  async function close(dialog) {
+  async function close(dialog, dirty = false) {
     await dialog
       .getByRole("button", { name: "关闭对话框", exact: true })
       .click();
@@ -93,10 +93,12 @@ test("响应式布局：操作可达、字段对齐及弹窗滚动", async ({ pa
       name: "放弃未保存的修改？",
       exact: true,
     });
-    if (await confirm.isVisible())
+    if (dirty) {
+      await expect(confirm).toBeVisible();
       await confirm
         .getByRole("button", { name: "放弃修改", exact: true })
         .click();
+    }
     await expect(dialog).not.toBeVisible();
   }
 
@@ -229,7 +231,7 @@ test("响应式布局：操作可达、字段对齐及弹窗滚动", async ({ pa
     expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
     await footerFits(dialog);
     await screenshot(`client-form-${name}`);
-    await close(dialog);
+    await close(dialog, true);
     await go("audit");
     await pageFits();
     expect(

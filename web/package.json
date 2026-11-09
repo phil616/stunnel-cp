@@ -1,11 +1,11 @@
 {
   "name": "stunnel-cp-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/generate-favicon.mjs && tsc --noEmit && vite build",
     "test:e2e": "playwright test"
   },
   "dependencies": {

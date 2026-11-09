@@ -131,24 +131,9 @@ small {
   line-height: 1;
   flex-shrink: 0;
 }
-.brand-symbol {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--green);
-  color: white;
-}
-.brand-symbol > span {
-  position: absolute;
-  left: 17px;
-  top: 16px;
-  width: 7px;
-  height: 8px;
-  background: white;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
+.brand-icon {
+  color: var(--green);
+  flex-shrink: 0;
 }
 .sidebar nav,
 .mobile-sidebar nav {
