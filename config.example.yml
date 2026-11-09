@@ -1,0 +1,16 @@
+# 复制为 config.yml，然后运行：./stunnel-cp serve -c config.yml
+# 非空环境变量覆盖本文件；未填写的字段使用默认值。
+addr: 127.0.0.1:8080
+
+# 文件中填写的相对路径基于本文件所在目录；正式环境建议使用绝对路径。
+data_dir: ./data
+secure_cookie: false
+session_ttl: 12h # 允许 1m–720h
+
+# 控制台直接提供 HTTPS 时，两项必须同时设置，并自动启用 Secure Cookie。
+# tls_cert: ./tls/cert.pem
+# tls_key: ./tls/key.pem
+
+# 可选，64 位十六进制 AES-256 主密钥；默认使用数据目录中的 master.key。
+# 也可通过 STCP_MASTER_KEY 提供；必须与现有数据库对应，并独立备份。
+# master_key: ""

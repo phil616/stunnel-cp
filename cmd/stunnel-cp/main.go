@@ -4,17 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"flag"
-	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
-	"github.com/phil616/stunnel-cp/internal/buildinfo"
 	"github.com/phil616/stunnel-cp/internal/config"
 	"github.com/phil616/stunnel-cp/internal/httpapi"
 	"github.com/phil616/stunnel-cp/internal/secure"
@@ -24,39 +20,25 @@ import (
 )
 
 func main() {
-	showVersion := flag.Bool("version", false, "Print version and exit")
-	flag.Parse()
-	if *showVersion {
-		fmt.Printf("stunnel-cp %s\ncommit: %s\nbuilt: %s\n", buildinfo.Version, buildinfo.Commit, buildinfo.Date)
-		return
-	}
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
-		logger.Error("server stopped", "error", err)
-		os.Exit(1)
-	}
+	os.Exit(execute(os.Args[1:], os.Stdout, os.Stderr))
 }
-func run(logger *slog.Logger) error {
-	cfg, err := config.Load()
-	if err != nil {
+
+func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if err := os.MkdirAll(cfg.DataDir, 0700); err != nil {
 		return err
 	}
-	if err = os.MkdirAll(cfg.DataDir, 0700); err != nil {
-		return err
-	}
-	if err = os.Chmod(cfg.DataDir, 0700); err != nil {
+	if err := os.Chmod(cfg.DataDir, 0700); err != nil {
 		return err
 	}
 	// Refuse to silently generate a new master key for an existing database.
 	keyPath := filepath.Join(cfg.DataDir, "master.key")
 	dbPath := filepath.Join(cfg.DataDir, "stunnel.db")
-	if info, e := os.Stat(dbPath); e == nil && info.Size() > 0 && os.Getenv("STCP_MASTER_KEY") == "" {
+	if info, e := os.Stat(dbPath); e == nil && info.Size() > 0 && cfg.MasterKey == "" {
 		if _, e = os.Stat(keyPath); e != nil {
 			return errors.New("existing database has no master.key; restore the original master key")
 		}
 	}
-	key, err := secure.LoadKey(keyPath, os.Getenv("STCP_MASTER_KEY"))
+	key, err := secure.LoadKey(keyPath, cfg.MasterKey)
 	if err != nil {
 		return err
 	}
@@ -70,23 +52,26 @@ func run(logger *slog.Logger) error {
 	}
 	defer db.Close()
 	svc := service.New(db, vault)
-	if err := svc.CheckVault(context.Background()); err != nil {
+	if err := svc.CheckVault(ctx); err != nil {
 		return err
 	}
 	srv := &http.Server{Addr: cfg.Address, Handler: httpapi.New(svc, cfg, web.Assets(), logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	listener, err := net.Listen("tcp", cfg.Address)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
 	result := make(chan error, 1)
 	go func() {
 		scheme := "http"
 		if cfg.TLSCert != "" {
 			scheme = "https"
 		}
-		logger.Info("stunnel control plane listening", "url", scheme+"://"+cfg.Address, "data_dir", cfg.DataDir)
+		logger.Info("stunnel control plane listening", "url", scheme+"://"+listener.Addr().String(), "data_dir", cfg.DataDir)
 		if cfg.TLSCert != "" {
-			result <- srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey)
+			result <- srv.ServeTLS(listener, cfg.TLSCert, cfg.TLSKey)
 		} else {
-			result <- srv.ListenAndServe()
+			result <- srv.Serve(listener)
 		}
 	}()
 	select {

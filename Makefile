@@ -12,6 +12,6 @@ test:
 release: web
 	bash scripts/build-release.sh "$(VERSION)" "$(RELEASE_GOOS)" "$(RELEASE_GOARCH)"
 run:
-	go run ./cmd/stunnel-cp
+	go run ./cmd/stunnel-cp serve
 clean:
 	rm -rf bin

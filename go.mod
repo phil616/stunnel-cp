@@ -3,6 +3,7 @@ module github.com/phil616/stunnel-cp
 go 1.26.10
 
 require (
+	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
 	modernc.org/sqlite v1.40.1
 )

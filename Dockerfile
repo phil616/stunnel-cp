@@ -23,3 +23,4 @@ VOLUME ["/data"]
 EXPOSE 8080
 USER 65532:65532
 ENTRYPOINT ["/app/stunnel-cp"]
+CMD ["serve"]

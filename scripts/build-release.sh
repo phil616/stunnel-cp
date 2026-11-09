@@ -26,7 +26,7 @@ binary=stunnel-cp
 CGO_ENABLED=0 GOOS="$target_os" GOARCH="$target_arch" go build -mod=readonly -trimpath -buildvcs=false \
   -ldflags="-s -w -X github.com/phil616/stunnel-cp/internal/buildinfo.Version=$version -X github.com/phil616/stunnel-cp/internal/buildinfo.Commit=$commit -X github.com/phil616/stunnel-cp/internal/buildinfo.Date=$built_at" \
   -o "$staging/$binary" ./cmd/stunnel-cp
-cp README.md .env.example "$staging/"
+cp README.md .env.example config.example.yml "$staging/"
 mkdir "$staging/docs"
 cp docs/*.md "$staging/docs/"
 python3 - "$staging" "$output_dir" "$version" "$target_os" "$target_arch" "$commit" "$built_at" <<'PY'

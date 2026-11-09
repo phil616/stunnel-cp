@@ -24,7 +24,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "go run ../cmd/stunnel-cp",
+    command: "go run ../cmd/stunnel-cp serve",
     url: "http://127.0.0.1:18080/healthz",
     timeout: 120000,
     reuseExistingServer: false,

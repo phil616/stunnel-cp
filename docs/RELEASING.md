@@ -57,7 +57,7 @@ stunnel-cp_v1.2.3_windows_arm64.zip
 SHA256SUMS
 ```
 
-每个压缩包包含已嵌入前端的可执行文件、`BUILD_INFO.json`、`README.md`、`docs/` 和 `.env.example`。没有数据库、主密钥、运行配置或用户证书。Go 版本取自 `go.mod`，跨平台构建使用 `CGO_ENABLED=0`。
+每个压缩包包含已嵌入前端的可执行文件、`BUILD_INFO.json`、`README.md`、`docs/`、`config.example.yml` 和 `.env.example`。没有数据库、主密钥、运行配置或用户证书。Go 版本取自 `go.mod`，跨平台构建使用 `CGO_ENABLED=0`。
 
 ```bash
 # Linux：下载对应包及 SHA256SUMS 后，检查该文件
@@ -67,7 +67,11 @@ sha256sum --ignore-missing -c SHA256SUMS
 shasum -a 256 stunnel-cp_v1.2.3_darwin_arm64.tar.gz
 # 与 SHA256SUMS 中该文件的摘要逐字比较
 
-# 解压后查看版本、源提交和构建时间
+# 解压后，按示例创建配置并启动
+cp config.example.yml config.yml
+./stunnel-cp serve -c config.yml
+
+# 查看版本、源提交和构建时间
 ./stunnel-cp --version
 ```
 

@@ -10,7 +10,7 @@
 
 ```bash
 # 源码已附带编译后的 web/dist，可直接启动
-go run ./cmd/stunnel-cp
+go run ./cmd/stunnel-cp serve
 ```
 
 打开 **http://127.0.0.1:8080**，按提示设置管理员用户名和密码。没有默认密码。默认只监听本机，首次启动会创建 `data/`、SQLite 数据库和 `master.key`。
@@ -20,10 +20,24 @@ go run ./cmd/stunnel-cp
 make build
 
 # 运行单一二进制
-./bin/stunnel-cp
+./bin/stunnel-cp serve
 ```
 
-二进制可以移动到其他目录运行。默认数据目录相对于启动时的工作目录；正式部署应设置绝对路径。
+二进制可以移动到其他目录运行；直接运行 `./stunnel-cp` 仍兼容。默认数据目录相对于启动时的工作目录，正式部署建议使用绝对路径。
+
+使用 YAML 配置：
+
+```bash
+cp config.example.yml config.yml
+./bin/stunnel-cp serve -c config.yml
+# 参数也可写在子命令前：
+./bin/stunnel-cp -c config.yml serve
+# 帮助与版本
+./bin/stunnel-cp serve --help
+./bin/stunnel-cp --version
+```
+
+Windows 使用 `.\stunnel-cp.exe serve -c config.yml`。配置文件只在传入 `-c` 或 `--config` 时读取。
 
 ## 功能
 
@@ -101,16 +115,33 @@ README.md       # 启动与 CRL 更新说明
 - 不提供 CA 私钥导出，也不硬删除已签发的证书。存在签发记录的 CA 无法删除；吊销历史会保留。
 - CA 有效期 1–7300 天，叶证书 1–825 天；叶证书不能超过 CA 剩余有效期。服务端证书必须包含 SAN。
 
-## 环境配置
+## 启动配置
 
-程序直接读取进程环境变量，不自动加载 `.env` 文件。
+配置优先级为：**非空环境变量 > `-c` 指定的 YAML 文件 > 默认值**。未指定配置文件时，保持原有环境变量启动方式；不自动读取当前目录的 `config.yml` 或 `.env`。
+
+```yaml
+addr: 127.0.0.1:8080
+data_dir: ./data
+secure_cookie: false
+session_ttl: 12h
+# tls_cert: ./tls/cert.pem
+# tls_key: ./tls/key.pem
+# master_key: ""
+```
+
+文件中明确填写的 `data_dir`、`tls_cert`、`tls_key` 相对路径，以配置文件目录为基准。默认值和环境变量中的相对路径以启动工作目录为基准。`session_ttl` 支持 `30m`、`12h` 等 Go 时长，范围为 `1m`–`720h`，默认 `12h`。
+
+配置文件支持 `addr`、`data_dir`、`secure_cookie`、`session_ttl`、`tls_cert`、`tls_key`、`master_key`。未知字段、重复字段、多个 YAML 文档及无效类型会导致启动失败，不会静默退回默认配置。配置包含主密钥时应限制文件权限，并独立备份。
+
+环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `STCP_ADDR` | `127.0.0.1:8080` | HTTP / HTTPS 监听地址 |
 | `STCP_DATA_DIR` | `./data` | 数据目录，正式环境推荐绝对路径 |
-| `STCP_MASTER_KEY` | 空 | 可选，64 位十六进制 AES-256 主密钥；设置后覆盖 `master.key` 文件来源 |
+| `STCP_MASTER_KEY` | 空 | 可选，64 位十六进制 AES-256 主密钥；设置后覆盖 YAML `master_key` 及 `master.key` 文件来源 |
 | `STCP_SECURE_COOKIE` | `false` | HTTPS 反向代理部署时设为 `true` |
+| `STCP_SESSION_TTL` | `12h` | 会话时长，允许 `1m`–`720h` |
 | `STCP_TLS_CERT` | 空 | 控制台 HTTPS 证书 PEM 路径 |
 | `STCP_TLS_KEY` | 空 | 控制台 HTTPS 私钥 PEM 路径，必须与证书同时设置 |
 
@@ -121,7 +152,7 @@ STCP_ADDR=0.0.0.0:8443 \
 STCP_DATA_DIR=/var/lib/stunnel-cp \
 STCP_TLS_CERT=/etc/stunnel-cp/web-cert.pem \
 STCP_TLS_KEY=/etc/stunnel-cp/web-key.pem \
-./bin/stunnel-cp
+./bin/stunnel-cp serve
 ```
 
 也可以将控制台放在 HTTPS 反向代理后面：后端保持本机监听，设置 `STCP_SECURE_COOKIE=true`，代理保留原始 `Host` 请求头。首次初始化应在控制台向不可信网络开放之前完成。页面位于根路径 `/`，不支持子路径代理。
@@ -151,14 +182,14 @@ docker compose up --build -d
 
 - CA 和叶证书私钥采用 **AES-256-GCM** 加密；每条记录的 ID 作为关联数据，防止交换密文。主密钥为随机 32 字节。
 - 数据目录默认 `0700`，数据库和主密钥文件为 `0600`。启动时校验主密钥与数据库绑定，缺失或错误时拒绝启动。
-- 密码采用 bcrypt（cost 12）；会话令牌随机生成，数据库仅保存 SHA-256 摘要。Cookie 为 HttpOnly、SameSite Strict，支持 Secure，固定 12 小时到期。
+- 密码采用 bcrypt（cost 12）；会话令牌随机生成，数据库仅保存 SHA-256 摘要。Cookie 为 HttpOnly、SameSite Strict，支持 Secure，默认 12 小时到期，可通过 `session_ttl` 调整。
 - 登录与初始化按来源 IP 限流（每分钟 10 次），不信任客户端提供的 `X-Forwarded-For`。代理后多个用户会共享代理 IP 的限额。
 - 修改操作要求 `X-CSRF-Protection: 1`，并校验 Origin 与 Fetch Metadata；API 不开放 CORS。
 - JSON 请求限制为 16 KiB，拒绝未知字段；SQL 参数化；配置字段使用白名单和严格地址验证，不允许注入任意 stunnel 指令。
 - 带请求 ID 的 JSON 日志、HTTP 超时、异常恢复、安全响应头和优雅退出。
 - 单管理员、单工作空间，适合自托管配置管理；没有多租户、RBAC、HSM、ACME、外部 CA 导入或自动部署代理。
 
-**备份**：停止控制台进程，完整备份数据目录（包括 `stunnel.db`、可能存在的 WAL 文件与 `master.key`）。如果使用环境主密钥，须在密钥管理系统中独立备份该值。恢复时必须同时恢复数据库和对应主密钥。在线复制单个 SQLite 文件不能保证一致性。部署包包含明文叶私钥，应通过安全通道传输并限制访问。
+**备份**：停止控制台进程，完整备份数据目录（包括 `stunnel.db`、可能存在的 WAL 文件与 `master.key`）。如果通过环境变量或 YAML 提供主密钥，须独立备份密钥及相应配置。恢复时必须同时恢复数据库和对应主密钥。在线复制单个 SQLite 文件不能保证一致性。部署包包含明文叶私钥，应通过安全通道传输并限制访问。
 
 ## 开发与验证
 
@@ -197,7 +228,7 @@ API 入口与调用方式见 [docs/API.md](docs/API.md)。
 cmd/stunnel-cp/     程序入口、信号处理和生命周期
 internal/
   buildinfo/       构建版本、提交与时间
-  config/          环境配置
+  config/          YAML 文件、环境变量与配置校验
   domain/          领域模型（私钥字段不参与 JSON 序列化）
   store/           SQLite、迁移、事务、会话与审计
   secure/          主密钥管理、AES-GCM 加密

@@ -14,3 +14,6 @@ coverage.out
 
 /dist/
 __pycache__/
+
+/config.yml
+/config.yaml

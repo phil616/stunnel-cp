@@ -111,11 +111,22 @@ export function ReferencePage({
         <h2>控制台启动</h2>
         <CodeBlock
           label="运行控制台"
+          code="./stunnel-cp serve -c config.yml"
+          copy={copy}
+        />
+        <CodeBlock
+          label="config.yml"
           code={
-            "STCP_ADDR=127.0.0.1:8080 \\\nSTCP_DATA_DIR=/var/lib/stunnel-cp \\\n./stunnel-cp"
+            "addr: 127.0.0.1:8080\ndata_dir: ./data\nsecure_cookie: false\nsession_ttl: 12h"
           }
           copy={copy}
         />
+        <p>
+          环境变量优先于 YAML
+          文件，未填写项使用默认值。文件中填写的相对路径以配置文件目录为基准；环境变量和默认路径以启动目录为基准。
+          直接运行 <code>./stunnel-cp</code> 仍兼容，只有指定 <code>-c</code>{" "}
+          才加载文件。
+        </p>
         <p>
           默认监听本机。对外访问前完成初始化，并配置 HTTPS。反向代理需保留
           Host，并设置 <code>STCP_SECURE_COOKIE=true</code>；不支持子路径代理。
@@ -157,6 +168,12 @@ export function ReferencePage({
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>
+                  <code>STCP_SESSION_TTL</code>
+                </Table.Td>
+                <Table.Td>12h；允许 1m–720h</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_MASTER_KEY</code>
                 </Table.Td>
                 <Table.Td>
@@ -178,14 +195,15 @@ export function ReferencePage({
           <li>使用同一主密钥启动控制台，检查证书和配置。</li>
         </ol>
         <p>
-          使用环境主密钥时，需单独备份其值。不要在线只复制数据库文件，也不要重新生成主密钥。部署包含明文叶私钥，应限制访问。
+          通过环境变量或 YAML
+          提供主密钥时，需单独备份密钥及配置。不要在线只复制数据库文件，也不要重新生成主密钥。部署包含明文叶私钥，应限制访问。
         </p>
       </section>
       <section className="panel docs-section">
         <h2>账户与升级</h2>
         <p>
-          点击侧栏用户名修改密码，其他会话立即失效。会话 12
-          小时后过期，登录限流为每 IP 每分钟 10 次。
+          点击侧栏用户名修改密码，其他会话立即失效。会话默认 12
+          小时后过期，可通过 session_ttl 调整；登录限流为每 IP 每分钟 10 次。
         </p>
         <p>
           升级前停服备份数据目录，再替换二进制。发布包已内嵌前端，运行时不需要

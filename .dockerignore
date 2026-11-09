@@ -7,3 +7,6 @@ web/playwright-report
 *.db*
 *.key
 .env
+
+config.yml
+config.yaml
