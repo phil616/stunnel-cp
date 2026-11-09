@@ -5,11 +5,10 @@ import {
   Copy,
   Download,
   Fingerprint,
-  Plus,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Badge, IconButton } from "../components/ui";
+import { Badge, Empty, IconButton } from "../components/ui";
 import { api, date } from "../api";
 import type { Snapshot, Certificate, Authority } from "../api";
 import type { Confirmation } from "../types";
@@ -34,6 +33,17 @@ export function AuthoritiesPage({
   notify: (message: string, error?: boolean) => void;
   setEditor: (editor: Editor) => void;
 }) {
+  if (!snapshot.authorities.length)
+    return (
+      <section className="panel">
+        <Empty
+          icon={ShieldCheck}
+          title="暂无证书颁发机构"
+          action={() => setEditor({ type: "ca" })}
+          label="创建证书颁发机构"
+        />
+      </section>
+    );
   return (
     <>
       <div className="ca-grid">
@@ -43,17 +53,37 @@ export function AuthoritiesPage({
               <span className="ca-icon">
                 <ShieldCheck size={25} />
               </span>
-              <Badge
-                kind={
-                  new Date(a.not_after).getTime() > Date.now()
-                    ? "valid"
-                    : "expired"
-                }
-              >
-                {new Date(a.not_after).getTime() > Date.now()
-                  ? "有效信任根"
-                  : "已过期"}
-              </Badge>
+              <div className="ca-card-menu">
+                <Badge
+                  kind={
+                    new Date(a.not_after).getTime() > Date.now()
+                      ? "valid"
+                      : "expired"
+                  }
+                >
+                  {new Date(a.not_after).getTime() > Date.now()
+                    ? "有效信任根"
+                    : "已过期"}
+                </Badge>{" "}
+                <IconButton
+                  icon={Trash2}
+                  danger
+                  label={`删除 ${a.name}`}
+                  disabled={snapshot.certificates.some((c) => c.ca_id === a.id)}
+                  onClick={() =>
+                    setConfirmation({
+                      title: `删除 CA「${a.name}」`,
+                      description:
+                        "该操作无法撤销。此 CA 的证书与私钥将从数据库删除。",
+                      action: async () => {
+                        await api(`/authorities/${a.id}`, "DELETE");
+                        await refresh();
+                        notify("CA 已删除");
+                      },
+                    })
+                  }
+                />
+              </div>
             </div>
             <UnstyledButton className="ca-name" onClick={() => setDetail(a)}>
               {a.name}
@@ -89,7 +119,7 @@ export function AuthoritiesPage({
             <div className="ca-card-actions">
               <Button
                 variant="default"
-                size="compact-sm"
+                size="sm"
                 onClick={() => exportFile(`/authorities/${a.id}/certificate`)}
               >
                 <Download size={14} />
@@ -97,42 +127,15 @@ export function AuthoritiesPage({
               </Button>
               <Button
                 variant="default"
-                size="compact-sm"
+                size="sm"
                 onClick={() => exportFile(`/authorities/${a.id}/crl`)}
               >
                 <ArrowDownToLine size={14} />
                 吊销列表
               </Button>
-              <IconButton
-                icon={Trash2}
-                danger
-                label={`删除 ${a.name}`}
-                disabled={snapshot.certificates.some((c) => c.ca_id === a.id)}
-                onClick={() =>
-                  setConfirmation({
-                    title: `删除 CA「${a.name}」`,
-                    description:
-                      "该操作无法撤销。此 CA 的证书与私钥将从数据库删除。",
-                    action: async () => {
-                      await api(`/authorities/${a.id}`, "DELETE");
-                      await refresh();
-                      notify("CA 已删除");
-                    },
-                  })
-                }
-              />
             </div>
           </section>
         ))}
-        <UnstyledButton
-          className="new-ca-card"
-          onClick={() => setEditor({ type: "ca" })}
-        >
-          <span>
-            <Plus size={23} />
-          </span>
-          <strong>创建证书颁发机构</strong>
-        </UnstyledButton>
       </div>
     </>
   );

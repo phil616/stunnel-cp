@@ -1,3 +1,4 @@
+import { TunnelRoute } from "./components/TunnelRoute";
 import {
   Drawer,
   TextInput,
@@ -20,7 +21,6 @@ import { ReferencePage } from "./pages/ReferencePage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
-  ArrowRight,
   ArrowUpRight,
   BookOpen,
   ChevronRight,
@@ -271,9 +271,57 @@ export function App() {
   };
   const current = titles[page];
   function tunnelTable(items: Tunnel[], compact = false) {
+    if (compact && items.length)
+      return (
+        <ul className="recent-tunnels">
+          {items.map((t) => (
+            <li key={t.id}>
+              <div className="recent-tunnel-heading">
+                <UnstyledButton
+                  className="resource-name"
+                  onClick={() => showPreview(t)}
+                >
+                  <span
+                    className={`table-icon ${t.mode === "client" ? "blue" : ""}`}
+                  >
+                    <Network size={17} />
+                  </span>
+                  <span>
+                    <strong title={t.name}>{t.name}</strong>
+                    <small>{t.mode === "server" ? "服务端" : "客户端"}</small>
+                  </span>
+                </UnstyledButton>
+                <Badge
+                  kind={
+                    !t.enabled ? "disabled" : ready(t) ? "valid" : "expired"
+                  }
+                >
+                  {!t.enabled ? "已停用" : ready(t) ? "可部署" : "证书异常"}
+                </Badge>
+              </div>
+              <div className="recent-tunnel-footer">
+                <TunnelRoute tunnel={t} />
+                <div className="row-actions">
+                  <IconButton
+                    icon={FileCode2}
+                    label={`预览 ${t.name}`}
+                    onClick={() => showPreview(t)}
+                  />
+                  <IconButton
+                    icon={Download}
+                    label={`下载 ${t.name} 部署包`}
+                    disabled={!ready(t)}
+                    onClick={() => setExportTunnel(t)}
+                  />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      );
     return items.length ? (
       <div className="table-scroll">
-        <Table>
+        <Table className="resource-table tunnel-table">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>隧道名称</Table.Th>
@@ -286,7 +334,7 @@ export function App() {
           <Table.Tbody>
             {items.map((t) => (
               <Table.Tr key={t.id}>
-                <Table.Td>
+                <Table.Td className="resource-primary">
                   <UnstyledButton
                     className="resource-name"
                     onClick={() => showPreview(t)}
@@ -302,15 +350,17 @@ export function App() {
                     </span>
                   </UnstyledButton>
                 </Table.Td>
-                <Table.Td>
-                  <div className="route">
-                    <code>{t.accept}</code>
-                    <ArrowRight size={12} />
-                    <code>{t.connect}</code>
-                  </div>
+                <Table.Td
+                  className="resource-field resource-route"
+                  data-label="转发路径"
+                >
+                  <TunnelRoute tunnel={t} />
                 </Table.Td>
                 {!compact && (
-                  <Table.Td>
+                  <Table.Td
+                    className="resource-field resource-secondary"
+                    data-label="关联证书"
+                  >
                     <Button
                       variant="subtle"
                       size="compact-sm"
@@ -323,7 +373,7 @@ export function App() {
                     </Button>
                   </Table.Td>
                 )}
-                <Table.Td>
+                <Table.Td className="resource-status">
                   <Badge
                     kind={
                       !t.enabled ? "disabled" : ready(t) ? "valid" : "expired"
@@ -332,10 +382,11 @@ export function App() {
                     {!t.enabled ? "已停用" : ready(t) ? "可部署" : "证书异常"}
                   </Badge>
                 </Table.Td>
-                <Table.Td>
+                <Table.Td className="resource-actions">
                   <div className="row-actions">
                     {!compact && (
                       <Switch
+                        className="tunnel-toggle"
                         checked={t.enabled}
                         aria-label={`${t.enabled ? "停用" : "启用"} ${t.name}`}
                         onChange={() => toggle(t)}
@@ -474,6 +525,7 @@ export function App() {
             <UnstyledButton
               className="mobile-menu"
               aria-label="打开导航"
+              title="打开导航"
               onClick={() => setMobile(true)}
             >
               <Menu size={20} />
@@ -648,6 +700,30 @@ export function App() {
             "purpose" in detail ? "证书详情 · X.509" : "证书颁发机构 · Root CA"
           }
           onClose={() => setDetail(null)}
+          footer={
+            <>
+              <Button variant="default" onClick={() => setDetail(null)}>
+                关闭
+              </Button>
+              <Button
+                variant="filled"
+                leftSection={<Download size={15} />}
+                disabled={
+                  "purpose" in detail &&
+                  !["valid", "expiring"].includes(certificateState(detail))
+                }
+                onClick={() =>
+                  exportFile(
+                    "purpose" in detail
+                      ? `/certificates/${detail.id}/bundle`
+                      : `/authorities/${detail.id}/certificate`,
+                  )
+                }
+              >
+                {"purpose" in detail ? "下载证书包" : "下载 CA 证书"}
+              </Button>
+            </>
+          }
         >
           <dl className="detail-list">
             {"purpose" in detail && (
@@ -704,28 +780,6 @@ export function App() {
               </dd>
             </div>
           </dl>
-          <div className="modal-actions">
-            <Button variant="default" onClick={() => setDetail(null)}>
-              关闭
-            </Button>
-            <Button
-              variant="filled"
-              disabled={
-                "purpose" in detail &&
-                !["valid", "expiring"].includes(certificateState(detail))
-              }
-              onClick={() =>
-                exportFile(
-                  "purpose" in detail
-                    ? `/certificates/${detail.id}/bundle`
-                    : `/authorities/${detail.id}/certificate`,
-                )
-              }
-            >
-              <Download size={15} />
-              {"purpose" in detail ? "下载证书包" : "下载 CA 证书"}
-            </Button>
-          </div>
         </Modal>
       )}
       {confirmation && (
@@ -736,40 +790,42 @@ export function App() {
           onClose={() => {
             if (!busyConfirm) setConfirmation(null);
           }}
+          footer={
+            <>
+              <Button
+                variant="default"
+                disabled={busyConfirm}
+                onClick={() => setConfirmation(null)}
+              >
+                取消
+              </Button>
+              <Button
+                variant="light"
+                color="red"
+                disabled={busyConfirm}
+                onClick={async () => {
+                  setBusyConfirm(true);
+                  try {
+                    await confirmation.action();
+                    setConfirmation(null);
+                  } catch (e) {
+                    notify(errorMessage(e), true);
+                  } finally {
+                    setBusyConfirm(false);
+                  }
+                }}
+              >
+                {busyConfirm && <LoaderCircle size={15} className="spin" />}
+                确认操作
+              </Button>
+            </>
+          }
         >
           <div className="confirm-body">
             <span className="confirm-icon">
               <ShieldX size={26} />
             </span>
             <p>{confirmation.description}</p>
-          </div>
-          <div className="modal-actions">
-            <Button
-              variant="default"
-              disabled={busyConfirm}
-              onClick={() => setConfirmation(null)}
-            >
-              取消
-            </Button>
-            <Button
-              variant="light"
-              color="red"
-              disabled={busyConfirm}
-              onClick={async () => {
-                setBusyConfirm(true);
-                try {
-                  await confirmation.action();
-                  setConfirmation(null);
-                } catch (e) {
-                  notify(errorMessage(e), true);
-                } finally {
-                  setBusyConfirm(false);
-                }
-              }}
-            >
-              {busyConfirm && <LoaderCircle size={15} className="spin" />}
-              确认操作
-            </Button>
           </div>
         </Modal>
       )}

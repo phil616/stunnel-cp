@@ -137,6 +137,7 @@ export function Modal({
   busy = false,
   zIndex = 200,
   trapFocus = true,
+  footer,
 }: {
   title: string;
   description?: string;
@@ -148,6 +149,7 @@ export function Modal({
   busy?: boolean;
   zIndex?: number;
   trapFocus?: boolean;
+  footer?: ReactNode;
 }) {
   return (
     <MantineModal
@@ -156,11 +158,20 @@ export function Modal({
         if (!busy) onClose();
       }}
       title={
-        <Text fw={600} size="lg">
+        <Text component="h2" fw={600} size="lg" lh={1.4}>
           {title}
         </Text>
       }
-      size={wide ? "lg" : "md"}
+      size={wide ? "44rem" : "30rem"}
+      classNames={{
+        content: "dialog-shell",
+        header: "dialog-header",
+        title: "dialog-title",
+        body: "dialog-layout",
+        close: "dialog-close",
+      }}
+      xOffset={16}
+      yOffset={16}
       closeOnClickOutside={closeOnClickOutside && !busy}
       closeOnEscape={closeOnEscape && !busy}
       closeButtonProps={{ "aria-label": "关闭对话框", disabled: busy }}
@@ -168,12 +179,15 @@ export function Modal({
       trapFocus={trapFocus}
       zIndex={zIndex}
     >
-      {description && (
-        <Text size="sm" c="dimmed" mb="md">
-          {description}
-        </Text>
-      )}
-      {children}
+      <div className="dialog-content">
+        {description && (
+          <Text size="sm" c="dimmed" mb="lg">
+            {description}
+          </Text>
+        )}
+        {children}
+      </div>
+      {footer && <div className="dialog-footer">{footer}</div>}
     </MantineModal>
   );
 }

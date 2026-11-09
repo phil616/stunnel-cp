@@ -70,55 +70,57 @@ export function OverviewPage({
               <Icon size={18} />
             </div>
             <strong>{value}</strong>
-            {foot && <small>{foot}</small>}
+            <small aria-hidden={!foot}>{foot || "\u00a0"}</small>
           </UnstyledButton>
         ))}
       </div>
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>最近的隧道</h2>
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            onClick={() => go("tunnels")}
-          >
-            全部
-            <ArrowRight size={14} />
-          </Button>
-        </div>
-        {tunnelTable(snapshot.tunnels.slice(0, 5), true)}
-      </section>
-      <section className="panel recent-activity">
-        <div className="panel-heading">
-          <h2>最近活动</h2>
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            onClick={() => go("audit")}
-          >
-            全部
-            <ArrowRight size={14} />
-          </Button>
-        </div>
-        {snapshot.audit.length ? (
-          <div className="activity-list">
-            {snapshot.audit.slice(0, 5).map((a) => (
-              <div className="activity-row" key={a.id}>
-                <div>
-                  <strong>
-                    {actionLabel(a.action)}
-                    {resourceLabel(a.resource)}
-                  </strong>
-                  <span>{a.name}</span>
-                </div>
-                <time>{dateTime(a.created_at)}</time>
-              </div>
-            ))}
+      <div className="overview-grid">
+        <section className="panel">
+          <div className="panel-heading">
+            <h2>最近的隧道</h2>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              onClick={() => go("tunnels")}
+            >
+              全部
+              <ArrowRight size={14} />
+            </Button>
           </div>
-        ) : (
-          <Empty icon={Activity} title="暂无记录" />
-        )}
-      </section>
+          {tunnelTable(snapshot.tunnels.slice(0, 5), true)}
+        </section>
+        <section className="panel recent-activity">
+          <div className="panel-heading">
+            <h2>最近活动</h2>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              onClick={() => go("audit")}
+            >
+              全部
+              <ArrowRight size={14} />
+            </Button>
+          </div>
+          {snapshot.audit.length ? (
+            <div className="activity-list">
+              {snapshot.audit.slice(0, 5).map((a) => (
+                <div className="activity-row" key={a.id}>
+                  <div>
+                    <strong>
+                      {actionLabel(a.action)}
+                      {resourceLabel(a.resource)}
+                    </strong>
+                    <span>{a.name}</span>
+                  </div>
+                  <time>{dateTime(a.created_at)}</time>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty icon={Activity} title="暂无记录" />
+          )}
+        </section>
+      </div>
     </>
   );
 }

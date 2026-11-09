@@ -1,10 +1,15 @@
 import { createTheme } from "@mantine/core";
+const inputDefaults = {
+  size: "sm",
+  withAsterisk: false,
+  inputWrapperOrder: ["label", "input", "description", "error"],
+};
 export const theme = createTheme({
   primaryColor: "forest",
   primaryShade: 9,
   defaultRadius: "md",
   fontFamily:
-    'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+    'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   colors: {
     forest: [
       "#eff7f2",
@@ -18,6 +23,13 @@ export const theme = createTheme({
       "#2d6a48",
       "#245b3d",
     ],
+  },
+  spacing: {
+    xs: "0.5rem",
+    sm: "0.75rem",
+    md: "1rem",
+    lg: "1.5rem",
+    xl: "2rem",
   },
   fontSizes: {
     xs: "0.75rem",
@@ -35,11 +47,11 @@ export const theme = createTheme({
       },
     },
     Button: { defaultProps: { size: "sm", type: "button" } },
-    TextInput: { defaultProps: { size: "sm", withAsterisk: false } },
-    PasswordInput: { defaultProps: { size: "sm", withAsterisk: false } },
-    NumberInput: { defaultProps: { size: "sm", withAsterisk: false } },
-    NativeSelect: { defaultProps: { size: "sm", withAsterisk: false } },
-    Textarea: { defaultProps: { size: "sm", withAsterisk: false } },
+    TextInput: { defaultProps: inputDefaults },
+    PasswordInput: { defaultProps: inputDefaults },
+    NumberInput: { defaultProps: inputDefaults },
+    NativeSelect: { defaultProps: inputDefaults },
+    Textarea: { defaultProps: inputDefaults },
     Modal: {
       defaultProps: {
         centered: true,

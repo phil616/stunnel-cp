@@ -91,6 +91,28 @@ export function TunnelExport({
       busy={busy}
       closeOnClickOutside={false}
       wide={preview}
+      footer={
+        <>
+          {preview && (
+            <Button
+              variant="default"
+              leftSection={<FileCode2 size={15} />}
+              disabled={!ready || pending || !config || busy}
+              onClick={() => void exportFile("config")}
+            >
+              仅配置文件
+            </Button>
+          )}
+          <Button
+            leftSection={<Download size={15} />}
+            loading={busy}
+            disabled={!ready || (preview && (pending || !config))}
+            onClick={() => void exportFile("bundle")}
+          >
+            下载部署包
+          </Button>
+        </>
+      }
     >
       <Stack>
         <SegmentedControl
@@ -113,7 +135,7 @@ export function TunnelExport({
         )}
         {preview && (
           <>
-            <Group justify="space-between">
+            <Group justify="space-between" className="preview-toolbar">
               <Text size="sm">
                 {tunnel.mode === "server" ? "服务端" : "客户端"} ·{" "}
                 {tunnel.tls_min}+
@@ -139,26 +161,6 @@ export function TunnelExport({
             </pre>
           </>
         )}
-        <Group justify="flex-end">
-          {preview && (
-            <Button
-              variant="default"
-              leftSection={<FileCode2 size={15} />}
-              disabled={!ready || pending || !config || busy}
-              onClick={() => void exportFile("config")}
-            >
-              仅配置文件
-            </Button>
-          )}
-          <Button
-            leftSection={<Download size={15} />}
-            loading={busy}
-            disabled={!ready || (preview && (pending || !config))}
-            onClick={() => void exportFile("bundle")}
-          >
-            下载部署包
-          </Button>
-        </Group>
       </Stack>
     </Modal>
   );

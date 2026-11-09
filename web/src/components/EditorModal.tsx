@@ -1,9 +1,8 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   Alert,
   Button,
   Checkbox,
-  Group,
   NativeSelect,
   NumberInput,
   SegmentedControl,
@@ -40,6 +39,7 @@ export function EditorModal({
   onSwitch: (type: "ca" | "cert" | "tunnel") => void;
 }) {
   const t = editor.tunnel;
+  const formId = useId();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const submitting = useRef(false);
@@ -164,13 +164,37 @@ export function EditorModal({
                 ? "编辑隧道配置"
                 : "新建隧道配置"
         }
+        wide={editor.type !== "ca"}
         onClose={() => guard.requestClose(onClose)}
         closeOnClickOutside={false}
         closeOnEscape={!guard.confirming}
         trapFocus={!guard.confirming}
         busy={busy}
+        footer={
+          <>
+            <Button
+              variant="default"
+              disabled={busy || guard.confirming}
+              onClick={() => guard.requestClose(onClose)}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              form={formId}
+              loading={busy}
+              disabled={busy || guard.confirming || blocked}
+            >
+              {editor.type === "ca"
+                ? "创建 CA"
+                : editor.type === "cert"
+                  ? "签发证书"
+                  : "保存配置"}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={form.onSubmit(submit)}>
+        <form id={formId} onSubmit={form.onSubmit(submit)}>
           <fieldset disabled={busy || guard.confirming} className="form-fields">
             <Stack gap="md">
               {editor.type === "ca" && (
@@ -291,20 +315,22 @@ export function EditorModal({
               )}
               {editor.type === "tunnel" && (
                 <>
-                  <TextInput
-                    label="隧道名称"
-                    description="1–64 位字母、数字、_ 或 -。"
-                    required
-                    maxLength={64}
-                    pattern="[a-zA-Z0-9][a-zA-Z0-9_\-]*"
-                    data-autofocus
-                    {...form.getInputProps("name")}
-                  />
-                  <TextInput
-                    label="描述 · 可选"
-                    maxLength={500}
-                    {...form.getInputProps("description")}
-                  />
+                  <div className="form-grid">
+                    <TextInput
+                      label="隧道名称"
+                      description="1–64 位字母、数字、_ 或 -。"
+                      required
+                      maxLength={64}
+                      pattern="[a-zA-Z0-9][a-zA-Z0-9_\-]*"
+                      data-autofocus
+                      {...form.getInputProps("name")}
+                    />
+                    <TextInput
+                      label="描述 · 可选"
+                      maxLength={500}
+                      {...form.getInputProps("description")}
+                    />
+                  </div>
                   <div>
                     <div className="control-label" id="mode-label">
                       工作模式
@@ -331,20 +357,32 @@ export function EditorModal({
                       {...form.getInputProps(`endpoints.${mode}.connect`)}
                     />
                   </div>
-                  <NativeSelect
-                    label="身份认证证书"
-                    required
-                    {...form.getInputProps(`endpoints.${mode}.certificate_id`)}
-                  >
-                    <option value="" disabled>
-                      选择{mode === "server" ? "服务端" : "客户端"}证书
-                    </option>
-                    {certificates.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} · {date(c.not_after)} 到期
+                  <div className="form-grid">
+                    <NativeSelect
+                      label="身份认证证书"
+                      required
+                      {...form.getInputProps(
+                        `endpoints.${mode}.certificate_id`,
+                      )}
+                    >
+                      <option value="" disabled>
+                        选择{mode === "server" ? "服务端" : "客户端"}证书
                       </option>
-                    ))}
-                  </NativeSelect>
+                      {certificates.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} · {date(c.not_after)} 到期
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <NativeSelect
+                      label="最低 TLS 版本"
+                      data={[
+                        { value: "TLSv1.2", label: "TLS 1.2" },
+                        { value: "TLSv1.3", label: "TLS 1.3" },
+                      ]}
+                      {...form.getInputProps("tls_min")}
+                    />
+                  </div>
                   {!certificates.length && (
                     <Alert color="yellow">
                       暂无可用的{mode === "server" ? "服务端" : "客户端"}证书。
@@ -369,15 +407,8 @@ export function EditorModal({
                       <CertificateHelp context="client" />
                     </>
                   )}
-                  <NativeSelect
-                    label="最低 TLS 版本"
-                    data={[
-                      { value: "TLSv1.2", label: "TLS 1.2" },
-                      { value: "TLSv1.3", label: "TLS 1.3" },
-                    ]}
-                    {...form.getInputProps("tls_min")}
-                  />
                   <Checkbox
+                    className="form-toggle"
                     label="启用此配置"
                     {...form.getInputProps("enabled", { type: "checkbox" })}
                   />
@@ -390,26 +421,6 @@ export function EditorModal({
               {error}
             </Alert>
           )}
-          <Group justify="flex-end" mt="lg">
-            <Button
-              variant="default"
-              disabled={busy || guard.confirming}
-              onClick={() => guard.requestClose(onClose)}
-            >
-              取消
-            </Button>
-            <Button
-              type="submit"
-              loading={busy}
-              disabled={busy || guard.confirming || blocked}
-            >
-              {editor.type === "ca"
-                ? "创建 CA"
-                : editor.type === "cert"
-                  ? "签发证书"
-                  : "保存配置"}
-            </Button>
-          </Group>
         </form>
       </Modal>
       {guard.confirmation}

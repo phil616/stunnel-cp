@@ -13,7 +13,7 @@ export function AuditPage({ snapshot }: { snapshot: Snapshot }) {
       </div>
       {snapshot.audit.length ? (
         <div className="table-scroll">
-          <Table>
+          <Table className="resource-table audit-table">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>操作</Table.Th>
@@ -26,7 +26,7 @@ export function AuditPage({ snapshot }: { snapshot: Snapshot }) {
             <Table.Tbody>
               {snapshot.audit.map((a) => (
                 <Table.Tr key={a.id}>
-                  <Table.Td>
+                  <Table.Td className="resource-primary">
                     <span className="audit-action">
                       <span className="activity-icon">
                         <Check size={13} />
@@ -34,12 +34,25 @@ export function AuditPage({ snapshot }: { snapshot: Snapshot }) {
                       {actionLabel(a.action)}
                     </span>
                   </Table.Td>
-                  <Table.Td>{resourceLabel(a.resource)}</Table.Td>
-                  <Table.Td>{a.name}</Table.Td>
-                  <Table.Td className="mono muted">
+                  <Table.Td
+                    className="resource-field resource-kind"
+                    data-label="资源类型"
+                  >
+                    {resourceLabel(a.resource)}
+                  </Table.Td>
+                  <Table.Td
+                    className="resource-field resource-resource"
+                    data-label="资源名称"
+                  >
+                    {a.name}
+                  </Table.Td>
+                  <Table.Td className="resource-status mono muted">
                     #{a.id.toString().padStart(4, "0")}
                   </Table.Td>
-                  <Table.Td className="mono muted">
+                  <Table.Td
+                    className="resource-field resource-time mono muted"
+                    data-label="时间"
+                  >
                     {date(a.created_at)}{" "}
                     {dateTime(a.created_at).split(" ").pop()}
                   </Table.Td>

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Alert, Button, Group, PasswordInput, Stack } from "@mantine/core";
+import { useId, useRef, useState } from "react";
+import { Alert, Button, PasswordInput, Stack } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { api } from "../api";
 import { errorMessage } from "../format";
@@ -15,6 +15,7 @@ export function PasswordModal({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const submitting = useRef(false);
+  const formId = useId();
   const form = useForm({
     initialValues: {
       current_password: "",
@@ -59,9 +60,28 @@ export function PasswordModal({
         closeOnEscape={!guard.confirming}
         trapFocus={!guard.confirming}
         busy={busy}
+        footer={
+          <>
+            <Button
+              variant="default"
+              disabled={busy || guard.confirming}
+              onClick={() => guard.requestClose(onClose)}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              form={formId}
+              loading={busy}
+              disabled={busy || guard.confirming}
+            >
+              更新密码
+            </Button>
+          </>
+        }
         onClose={() => guard.requestClose(onClose)}
       >
-        <form onSubmit={form.onSubmit(submit)}>
+        <form id={formId} onSubmit={form.onSubmit(submit)}>
           <fieldset className="form-fields" disabled={busy || guard.confirming}>
             <Stack gap="md">
               <PasswordInput
@@ -95,22 +115,6 @@ export function PasswordModal({
               {error}
             </Alert>
           )}
-          <Group justify="flex-end" mt="lg">
-            <Button
-              variant="default"
-              disabled={busy || guard.confirming}
-              onClick={() => guard.requestClose(onClose)}
-            >
-              取消
-            </Button>
-            <Button
-              type="submit"
-              loading={busy}
-              disabled={busy || guard.confirming}
-            >
-              更新密码
-            </Button>
-          </Group>
         </form>
       </Modal>
       {guard.confirmation}

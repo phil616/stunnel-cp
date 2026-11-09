@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Group, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import { Modal } from "../components/ui";
 const navigationEvent = "stcp:navigate";
 export function navigateSafely(action: () => void) {
@@ -64,16 +64,18 @@ export function useUnsavedChanges(
       onClose={continueEditing}
       closeOnClickOutside={false}
       zIndex={400}
+      footer={
+        <>
+          <Button data-autofocus onClick={continueEditing}>
+            继续编辑
+          </Button>
+          <Button color="red" variant="light" onClick={discard}>
+            放弃修改
+          </Button>
+        </>
+      }
     >
       <Text size="sm">尚有未保存的内容。放弃后无法恢复。</Text>
-      <Group justify="flex-end" mt="lg">
-        <Button data-autofocus onClick={continueEditing}>
-          继续编辑
-        </Button>
-        <Button color="red" variant="light" onClick={discard}>
-          放弃修改
-        </Button>
-      </Group>
     </Modal>
   ) : null;
   return { requestClose, confirming, confirmation };

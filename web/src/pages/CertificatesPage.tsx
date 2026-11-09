@@ -48,7 +48,7 @@ export function CertificatesPage({
         </div>
         {filteredCerts.length ? (
           <div className="table-scroll">
-            <Table>
+            <Table className="resource-table certificate-table">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>证书名称</Table.Th>
@@ -62,7 +62,7 @@ export function CertificatesPage({
               <Table.Tbody>
                 {filteredCerts.map((c) => (
                   <Table.Tr key={c.id}>
-                    <Table.Td>
+                    <Table.Td className="resource-primary">
                       <UnstyledButton
                         className="resource-name"
                         onClick={() => setDetail(c)}
@@ -76,22 +76,35 @@ export function CertificatesPage({
                         </span>
                       </UnstyledButton>
                     </Table.Td>
-                    <Table.Td>
-                      <span className="purpose">
-                        {c.purpose === "server" ? "服务端" : "客户端"}
-                      </span>
-                      <small className="cell-sub" title={c.sans.join(", ")}>
-                        {c.sans.join(", ") || "无 SAN"}
-                      </small>
+                    <Table.Td
+                      className="resource-field resource-purpose"
+                      data-label="用途 / SAN"
+                    >
+                      <div>
+                        <span className="purpose">
+                          {c.purpose === "server" ? "服务端" : "客户端"}
+                        </span>
+                        <small className="cell-sub" title={c.sans.join(", ")}>
+                          {c.sans.join(", ") || "无 SAN"}
+                        </small>
+                      </div>
                     </Table.Td>
-                    <Table.Td>
+                    <Table.Td
+                      className="resource-field resource-issuer"
+                      data-label="签发机构"
+                    >
                       {snapshot.authorities.find((a) => a.id === c.ca_id)?.name}
                     </Table.Td>
-                    <Table.Td className="mono">{date(c.not_after)}</Table.Td>
-                    <Table.Td>
+                    <Table.Td
+                      className="resource-field resource-expiry mono"
+                      data-label="有效期至"
+                    >
+                      {date(c.not_after)}
+                    </Table.Td>
+                    <Table.Td className="resource-status">
                       <CertBadge certificate={c} />
                     </Table.Td>
-                    <Table.Td>
+                    <Table.Td className="resource-actions">
                       <div className="row-actions">
                         <IconButton
                           icon={Fingerprint}
