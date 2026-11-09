@@ -1,0 +1,16 @@
+/data/
+/bin/
+web/node_modules/
+web/test-results/
+web/playwright-report/
+.env
+*.db
+*.db-shm
+*.db-wal
+master.key
+*.key
+*.zip
+coverage.out
+
+/dist/
+__pycache__/

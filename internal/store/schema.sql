@@ -1,0 +1,30 @@
+CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS users (
+ id INTEGER PRIMARY KEY CHECK(id = 1), username TEXT NOT NULL UNIQUE,
+ password_hash BLOB NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+ token_hash TEXT PRIMARY KEY, expires_at TEXT NOT NULL,
+ user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_session_expiry ON sessions(expires_at);
+CREATE TABLE IF NOT EXISTS authorities (
+ id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, metadata TEXT NOT NULL,
+ certificate_pem TEXT NOT NULL, encrypted_key BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS certificates (
+ id TEXT PRIMARY KEY, ca_id TEXT NOT NULL REFERENCES authorities(id) ON DELETE RESTRICT,
+ name TEXT NOT NULL UNIQUE, metadata TEXT NOT NULL,
+ certificate_pem TEXT NOT NULL, encrypted_key BLOB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cert_ca ON certificates(ca_id);
+CREATE TABLE IF NOT EXISTS tunnels (
+ id TEXT PRIMARY KEY, certificate_id TEXT NOT NULL REFERENCES certificates(id) ON DELETE RESTRICT,
+ name TEXT NOT NULL UNIQUE, metadata TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS audit (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL,
+ resource TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL
+);
+INSERT OR IGNORE INTO schema_migrations(version) VALUES (1);

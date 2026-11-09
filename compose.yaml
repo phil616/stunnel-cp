@@ -1,0 +1,21 @@
+services:
+  stunnel-cp:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - stunnel-data:/data
+    environment:
+      STCP_ADDR: "0.0.0.0:8080"
+      STCP_DATA_DIR: "/data"
+      STCP_SECURE_COOKIE: "false"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+volumes:
+  stunnel-data:
