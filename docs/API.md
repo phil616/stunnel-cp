@@ -78,3 +78,5 @@ GET /api/tunnels/{id}/bundle?platform=windows
 ZIP 内的 `README.md` 给出对应平台的安装、工作目录、启动与停止方法。Windows 需从官方发行安装器选择可选 Console CLI，并携带同版本所需 DLL；Unix 的 Debian / Ubuntu 示例安装 `stunnel4`，其他系统使用对应包管理器。部署包不包含 stunnel 可执行程序或依赖。
 
 两种平台下载均需登录；停用配置及过期、吊销证书均不能导出，成功导出写入审计记录。
+
+Windows 官方程序启动时会改到 EXE 目录，若存在 `config` 子目录则继续进入其中。因此上述便携布局要求 CLI 与 DLL 放在部署包根目录，且不额外创建 `config` 子目录；只设置父进程工作目录、再调用安装目录的 EXE 不能保证读取本部署包。该布局由 Windows runner 复制真实 CLI / DLL 后验证。

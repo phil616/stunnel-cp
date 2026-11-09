@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +106,28 @@ func TestStunnelMTLS(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		if platform == PlatformWindows {
+			// Windows crypto_init changes CWD to the executable directory (or its
+			// config subdirectory). Follow README: deploy the CLI and matching DLLs
+			// beside stunnel.conf instead of invoking the installed binary remotely.
+			entries, err := os.ReadDir(filepath.Dir(binary))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, entry := range entries {
+				if entry.IsDir() || (entry.Name() != filepath.Base(binary) && !strings.EqualFold(filepath.Ext(entry.Name()), ".dll")) {
+					continue
+				}
+				content, err := os.ReadFile(filepath.Join(filepath.Dir(binary), entry.Name()))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(filepath.Join(dir, entry.Name()), content, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
 		return dir
 	}
 	serverDir, clientDir := extract(server), extract(client)
@@ -114,7 +137,12 @@ func TestStunnelMTLS(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command(binary, "stunnel.conf")
+		executable, configPath := binary, "./stunnel.conf"
+		if platform == PlatformWindows {
+			executable = filepath.Join(dir, filepath.Base(binary))
+			configPath = `.\stunnel.conf`
+		}
+		cmd := exec.Command(executable, configPath)
 		cmd.Dir = dir
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile

@@ -25,6 +25,8 @@ func renderDeploymentReadme(t domain.Tunnel, platform Platform, crlExpires time.
 `+"```powershell\n"+`Set-Location 'C:\Services\%s'
 .\tstunnel.exe .\stunnel.conf
 `+"```\n"+`
+Windows stunnel 会切换到 EXE 所在目录，若其中有 config 子目录还会进入该子目录。请按上述方式将 CLI 与 DLL 放在部署包根目录，不要额外创建 config 子目录；仅设置 PowerShell 当前目录后调用另一处安装版 EXE，可能读到安装器的示例配置或找不到相对路径证书。
+
 tstunnel.exe 是原生 Console CLI，前台运行会显示日志；无需注册 Windows Service，也无需 GUI。
 停止时可用 Ctrl+C，或通过进程管理工具针对该进程的 PID 停止。
 `, t.Name)

@@ -104,6 +104,12 @@ export function GuidePage({
           停止。限制其他账户读取私钥。
         </p>
         <p>
+          Windows stunnel 会切换到 EXE 目录（或其中的 config
+          子目录）。程序和匹配 DLL 必须按上述方式放在部署包根目录，且不要另建
+          config 子目录；仅切换 PowerShell 目录后调用安装目录里的
+          EXE，可能读到错误配置。
+        </p>
+        <p>
           平台仅影响本次导出，不保存到隧道。Windows 配置省略 Unix 的
           foreground、pid 选项；两种平台的证书校验相同。包内 README
           提供完整启动说明，程序和 DLL 需另行安装。

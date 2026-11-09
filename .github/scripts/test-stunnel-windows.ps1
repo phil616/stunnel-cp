@@ -17,7 +17,8 @@ if ($actual -ne $expected) { throw 'Official stunnel installer checksum mismatch
 if ($LASTEXITCODE -ne 0) { throw 'Cannot extract official stunnel installer' }
 $console = @(Get-ChildItem -Path "$root\extracted" -Recurse -Filter tstunnel.exe)
 if ($console.Count -ne 1) { throw "Expected exactly one native console executable; found $($console.Count)" }
-# Keep the EXE in its original bin directory alongside its matching OpenSSL/runtime DLLs.
+# The Go test copies this EXE and its adjacent matching DLLs into each exported bundle,
+# following README. Windows stunnel changes its working directory to its own location.
 $env:STCP_STUNNEL_BIN = $console[0].FullName
 Write-Host "Testing native Console CLI: $env:STCP_STUNNEL_BIN"
 & go test ./internal/service -run '^TestStunnelMTLS$' -count=1 -v -timeout 2m
