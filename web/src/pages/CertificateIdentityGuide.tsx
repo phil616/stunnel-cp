@@ -1,3 +1,4 @@
+import { Table } from "@mantine/core";
 import { CodeBlock } from "../components/CodeBlock";
 
 const cases = [
@@ -48,59 +49,59 @@ export function CertificateIdentityGuide({
       <section className="panel docs-section">
         <h2>连接地址、SNI 与证书身份</h2>
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>项目</th>
-                <th>作用与填写方式</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>转发目标 / connect</td>
-                <td>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>项目</Table.Th>
+                <Table.Th>作用与填写方式</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              <Table.Tr>
+                <Table.Td>转发目标 / connect</Table.Td>
+                <Table.Td>
                   实际 TCP 连接地址，填写主机名或 IP
                   加端口。此地址可以与证书中的名称不同。
-                </td>
-              </tr>
-              <tr>
-                <td>服务端证书身份</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>服务端证书身份</Table.Td>
+                <Table.Td>
                   期望认证的服务域名或 IP，不带协议和端口。IPv6
                   身份不加方括号，连接地址则使用 [IPv6]:端口。
-                </td>
-              </tr>
-              <tr>
-                <td>checkHost / checkIP</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>checkHost / checkIP</Table.Td>
+                <Table.Td>
                   验证服务端出示的证书是否属于预期 DNS 名称或
                   IP，需同时通过证书链校验。
-                </td>
-              </tr>
-              <tr>
-                <td>SNI</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>SNI</Table.Td>
+                <Table.Td>
                   客户端在 TLS
                   握手中发送的服务名称，供服务端选择虚拟服务或证书。证书本身没有
                   SNI 字段；SNI 不负责认证。
-                </td>
-              </tr>
-              <tr>
-                <td>SAN</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>SAN</Table.Td>
+                <Table.Td>
                   证书声明的 DNS 名称或 IP。域名和 IP 是不同的 SAN
                   类型，不能相互替代。
-                </td>
-              </tr>
-              <tr>
-                <td>CN</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>CN</Table.Td>
+                <Table.Td>
                   证书的通用名称。DNS 名称校验优先使用 DNS SAN，不能通过匹配 CN
                   来绕过不匹配的 DNS SAN。
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tbody>
+          </Table>
         </div>
         <p>
           DNS 身份可以匹配证书中的通配符：<code>*.example.com</code> 可匹配{" "}
@@ -121,24 +122,24 @@ export function CertificateIdentityGuide({
           以下结果均假设网络可达，CA 信任、证书用途、有效期和 CRL 检查已通过。
         </p>
         <div className="table-scroll">
-          <table className="identity-cases">
-            <thead>
-              <tr>
-                <th>情况</th>
-                <th>结果</th>
-                <th>处理办法</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="identity-cases">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>情况</Table.Th>
+                <Table.Th>结果</Table.Th>
+                <Table.Th>处理办法</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {cases.map((item) => (
-                <tr key={item.situation}>
-                  <td data-label="情况">{item.situation}</td>
-                  <td data-label="结果">{item.result}</td>
-                  <td data-label="处理办法">{item.action}</td>
-                </tr>
+                <Table.Tr key={item.situation}>
+                  <Table.Td data-label="情况">{item.situation}</Table.Td>
+                  <Table.Td data-label="结果">{item.result}</Table.Td>
+                  <Table.Td data-label="处理办法">{item.action}</Table.Td>
+                </Table.Tr>
               ))}
-            </tbody>
-          </table>
+            </Table.Tbody>
+          </Table>
         </div>
         <p>
           修复前先确认连接到预期服务。证书缺少预期 SAN
@@ -153,42 +154,42 @@ export function CertificateIdentityGuide({
           可以与该域名不同。
         </p>
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>表单字段</th>
-                <th>值</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>工作模式</td>
-                <td>客户端</td>
-              </tr>
-              <tr>
-                <td>监听地址</td>
-                <td>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>表单字段</Table.Th>
+                <Table.Th>值</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              <Table.Tr>
+                <Table.Td>工作模式</Table.Td>
+                <Table.Td>客户端</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>监听地址</Table.Td>
+                <Table.Td>
                   <code>127.0.0.1:16379</code>
-                </td>
-              </tr>
-              <tr>
-                <td>转发目标</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>转发目标</Table.Td>
+                <Table.Td>
                   <code>10.0.0.8:6380</code>
-                </td>
-              </tr>
-              <tr>
-                <td>身份认证证书</td>
-                <td>本客户端的 ClientAuth 证书</td>
-              </tr>
-              <tr>
-                <td>服务端证书身份</td>
-                <td>
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>身份认证证书</Table.Td>
+                <Table.Td>本客户端的 ClientAuth 证书</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>服务端证书身份</Table.Td>
+                <Table.Td>
                   <code>redis.example.com</code>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tbody>
+          </Table>
         </div>
         <CodeBlock
           label="生成的客户端配置片段"

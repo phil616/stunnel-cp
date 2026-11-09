@@ -68,7 +68,11 @@ func (s *Service) ExportCertificate(ctx context.Context, id string) ([]byte, str
 	return data, "certificate-" + c.ID[:12] + ".zip", nil
 }
 
-func (s *Service) ExportTunnel(ctx context.Context, id string, bundle bool) ([]byte, string, error) {
+func (s *Service) ExportTunnel(ctx context.Context, id string, bundle bool, platform Platform) ([]byte, string, error) {
+	platform, err := ParsePlatform(string(platform))
+	if err != nil {
+		return nil, "", err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	t, err := s.Store.Tunnel(ctx, id)
@@ -85,8 +89,12 @@ func (s *Service) ExportTunnel(ctx context.Context, id string, bundle bool) ([]b
 	if !usable(c) {
 		return nil, "", Conflict("关联证书已过期或吊销，请更换证书")
 	}
-	conf := []byte(Config(t))
-	name := t.Name + ".conf"
+	config, err := Config(t, platform)
+	if err != nil {
+		return nil, "", err
+	}
+	conf := []byte(config)
+	name := t.Name + "-" + string(platform) + ".conf"
 	if bundle {
 		a, err := s.Store.Authority(ctx, c.CAID)
 		if err != nil {
@@ -100,12 +108,13 @@ func (s *Service) ExportTunnel(ctx context.Context, id string, bundle bool) ([]b
 		if err != nil {
 			return nil, "", err
 		}
-		readme := fmt.Sprintf("# %s — stunnel mTLS deployment\n\nRequires stunnel 5.x linked with OpenSSL 1.1.1+ (TLS 1.3 requires 1.1.1+).\n\n1. Extract this ZIP into a private directory.\n2. Change into that directory (all paths in stunnel.conf are relative).\n3. On Unix: chmod 700 . && chmod 600 certificates/key.pem\n4. Start: stunnel stunnel.conf (some distributions use stunnel4).\n5. Install as a service using your OS service manager after validation.\n\nMode: %s\nListen: %s\nConnect: %s\n\nBoth peers must have valid certificates issued by the SAME CA.\nCreate a corresponding %s tunnel and certificate for the other side.\nThis control plane does not start or monitor stunnel processes.\nCRL expires at %s. Refresh certificates/ca.crl BEFORE this date.\nAfter revocation, download the updated CA CRL and distribute to ALL peers,\nthen reload/restart stunnel. Previously exported bundles are not updated automatically.\nThe private key in this bundle is sensitive. Never commit it to source control.\n", t.Name, t.Mode, t.Accept, t.Connect, map[bool]string{true: "client", false: "server"}[t.Mode == "server"], next.Format(time.RFC3339))
+		readme := renderDeploymentReadme(t, platform, next)
+
 		conf, err = archive([]file{{"stunnel.conf", conf, 0644}, {"certificates/cert.pem", []byte(c.PEM), 0644}, {"certificates/key.pem", key, 0600}, {"certificates/ca.pem", []byte(a.PEM), 0644}, {"certificates/ca.crl", crl, 0644}, {"README.md", []byte(readme), 0644}})
 		if err != nil {
 			return nil, "", err
 		}
-		name = t.Name + ".zip"
+		name = t.Name + "-" + string(platform) + ".zip"
 	}
 	if err = s.Store.Record(ctx, "export", "tunnel", t.Name); err != nil {
 		return nil, "", err

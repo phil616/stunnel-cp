@@ -79,9 +79,34 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  windows-stunnel:
+    name: Native Windows stunnel
+    needs: verify
+    runs-on: windows-2022
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Remove checked-in frontend output
+        run: Remove-Item -Recurse -Force web/dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-dist
+          path: web/dist
+          digest-mismatch: error
+      - name: Verify native Console CLI forwarding and CRL revocation
+        run: ./.github/scripts/test-stunnel-windows.ps1
+
   package:
     name: Package ${{ matrix.goos }}-${{ matrix.goarch }}
-    needs: verify
+    needs: [verify, windows-stunnel]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:

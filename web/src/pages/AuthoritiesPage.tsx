@@ -1,3 +1,4 @@
+import { UnstyledButton, Button } from "@mantine/core";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -54,10 +55,10 @@ export function AuthoritiesPage({
                   : "已过期"}
               </Badge>
             </div>
-            <button className="ca-name" onClick={() => setDetail(a)}>
+            <UnstyledButton className="ca-name" onClick={() => setDetail(a)}>
               {a.name}
               <ArrowUpRight size={16} />
-            </button>
+            </UnstyledButton>
             <p>{a.organization}</p>
             <dl>
               <div>
@@ -86,20 +87,22 @@ export function AuthoritiesPage({
               />
             </div>
             <div className="ca-card-actions">
-              <button
-                className="button secondary small"
+              <Button
+                variant="default"
+                size="compact-sm"
                 onClick={() => exportFile(`/authorities/${a.id}/certificate`)}
               >
                 <Download size={14} />
                 CA 证书
-              </button>
-              <button
-                className="button secondary small"
+              </Button>
+              <Button
+                variant="default"
+                size="compact-sm"
                 onClick={() => exportFile(`/authorities/${a.id}/crl`)}
               >
                 <ArrowDownToLine size={14} />
                 吊销列表
-              </button>
+              </Button>
               <IconButton
                 icon={Trash2}
                 danger
@@ -121,7 +124,7 @@ export function AuthoritiesPage({
             </div>
           </section>
         ))}
-        <button
+        <UnstyledButton
           className="new-ca-card"
           onClick={() => setEditor({ type: "ca" })}
         >
@@ -129,7 +132,7 @@ export function AuthoritiesPage({
             <Plus size={23} />
           </span>
           <strong>创建证书颁发机构</strong>
-        </button>
+        </UnstyledButton>
       </div>
     </>
   );

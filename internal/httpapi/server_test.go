@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -126,12 +127,72 @@ func TestAPIWorkflowAndSecretRedaction(t *testing.T) {
 	}
 	w = request(t, h, "GET", "/api/tunnels/"+tunnel.ID+"/bundle", nil, cookie, false, "")
 	requireStatus(t, w, 200)
-	if w.Header().Get("Content-Type") != "application/zip" || !strings.Contains(w.Header().Get("Content-Disposition"), "api-server.zip") {
+	if w.Header().Get("Content-Type") != "application/zip" || !strings.Contains(w.Header().Get("Content-Disposition"), "api-server-unix.zip") {
 		t.Fatal("invalid attachment headers")
 	}
+	// All export endpoints normalize the same explicit target; no platform is persisted.
+	for _, query := range []string{"", "?platform=unix", "?platform=Windows", "?platform=%20UNIX%20"} {
+		platform := "unix"
+		if strings.Contains(query, "Windows") {
+			platform = "windows"
+		}
+		base := "/api/tunnels/" + tunnel.ID
+		preview := request(t, h, "GET", base+"/preview"+query, nil, cookie, false, "")
+		requireStatus(t, preview, 200)
+		var result struct {
+			Config   string `json:"config"`
+			Platform string `json:"platform"`
+		}
+		if err := json.Unmarshal(preview.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.Platform != platform {
+			t.Fatal("wrong preview platform")
+		}
+		conf := request(t, h, "GET", base+"/config"+query, nil, cookie, false, "")
+		requireStatus(t, conf, 200)
+		if conf.Body.String() != result.Config || !strings.Contains(conf.Header().Get("Content-Disposition"), "api-server-"+platform+".conf") {
+			t.Fatal("config differs from preview")
+		}
+		bundle := request(t, h, "GET", base+"/bundle"+query, nil, cookie, false, "")
+		requireStatus(t, bundle, 200)
+		if !strings.Contains(bundle.Header().Get("Content-Disposition"), "api-server-"+platform+".zip") {
+			t.Fatal("wrong bundle filename")
+		}
+		zr, err := zip.NewReader(bytes.NewReader(bundle.Body.Bytes()), int64(bundle.Body.Len()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, f := range zr.File {
+			if f.Name == "stunnel.conf" {
+				r, e := f.Open()
+				if e != nil {
+					t.Fatal(e)
+				}
+				b, e := io.ReadAll(r)
+				r.Close()
+				if e != nil || string(b) != result.Config {
+					t.Fatal("ZIP differs from preview")
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("ZIP has no config")
+		}
+	}
+	for _, endpoint := range []string{"preview", "config", "bundle"} {
+		path := "/api/tunnels/" + tunnel.ID + "/" + endpoint
+		for _, query := range []string{"?platform=linux", "?platform=windows&platform=unix", "?platform=%20", "?platform=%ZZ"} {
+			requireStatus(t, request(t, h, "GET", path+query, nil, cookie, false, ""), 400)
+		}
+		requireStatus(t, request(t, h, "GET", path+"?platform=windows", nil, nil, false, ""), 401)
+	}
+
 	requireStatus(t, request(t, h, "DELETE", "/api/authorities/"+a.ID, nil, cookie, true, ""), 409)
 	requireStatus(t, request(t, h, "POST", "/api/certificates/"+c.ID+"/revoke", nil, cookie, true, ""), 204)
-	requireStatus(t, request(t, h, "GET", "/api/tunnels/"+tunnel.ID+"/bundle", nil, cookie, false, ""), 409)
+	requireStatus(t, request(t, h, "GET", "/api/tunnels/"+tunnel.ID+"/bundle?platform=windows", nil, cookie, false, ""), 409)
 	w = request(t, h, "GET", "/api/authorities/"+a.ID+"/crl", nil, cookie, false, "")
 	requireStatus(t, w, 200)
 	if !strings.Contains(w.Body.String(), "X509 CRL") {

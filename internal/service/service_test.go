@@ -57,7 +57,7 @@ func TestDeploymentBundleAndRevocation(t *testing.T) {
 	if bytes.Contains(stored.Key, []byte("PRIVATE KEY")) {
 		t.Fatal("database contains plaintext private key")
 	}
-	data, _, err := s.ExportTunnel(ctx, tunnel.ID, true)
+	data, _, err := s.ExportTunnel(ctx, tunnel.ID, true, PlatformUnix)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestDeploymentBundleAndRevocation(t *testing.T) {
 	if err = s.Revoke(ctx, c.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = s.ExportTunnel(ctx, tunnel.ID, true); err == nil {
+	if _, _, err = s.ExportTunnel(ctx, tunnel.ID, true, PlatformUnix); err == nil {
 		t.Fatal("exported revoked tunnel")
 	}
 	if _, _, err = s.ExportCertificate(ctx, c.ID); err == nil {
@@ -178,7 +178,7 @@ func TestDatabasePersistence(t *testing.T) {
 	}
 	defer db.Close()
 	s = New(db, v)
-	if _, _, err = s.ExportTunnel(context.Background(), tunnel.ID, true); err != nil {
+	if _, _, err = s.ExportTunnel(context.Background(), tunnel.ID, true, PlatformUnix); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(path)

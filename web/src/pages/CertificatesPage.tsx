@@ -1,3 +1,4 @@
+import { TextInput, Table, UnstyledButton } from "@mantine/core";
 import {
   Download,
   FileCode2,
@@ -37,34 +38,32 @@ export function CertificatesPage({
             全部证书{" "}
             <span className="count">{snapshot.certificates.length}</span>
           </h2>
-          <div className="filter-input">
-            <Search size={16} />
-            <input
-              aria-label="搜索证书"
-              placeholder="搜索名称、CN 或 SAN…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+          <TextInput
+            aria-label="搜索证书"
+            placeholder="搜索名称、CN 或 SAN…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            leftSection={<Search size={16} />}
+          />
         </div>
         {filteredCerts.length ? (
           <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>证书名称</th>
-                  <th>用途 / SAN</th>
-                  <th>签发机构</th>
-                  <th>有效期至</th>
-                  <th>状态</th>
-                  <th className="align-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>证书名称</Table.Th>
+                  <Table.Th>用途 / SAN</Table.Th>
+                  <Table.Th>签发机构</Table.Th>
+                  <Table.Th>有效期至</Table.Th>
+                  <Table.Th>状态</Table.Th>
+                  <Table.Th className="align-right">操作</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {filteredCerts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <button
+                  <Table.Tr key={c.id}>
+                    <Table.Td>
+                      <UnstyledButton
                         className="resource-name"
                         onClick={() => setDetail(c)}
                       >
@@ -75,24 +74,24 @@ export function CertificatesPage({
                           <strong>{c.name}</strong>
                           <small>{c.common_name}</small>
                         </span>
-                      </button>
-                    </td>
-                    <td>
+                      </UnstyledButton>
+                    </Table.Td>
+                    <Table.Td>
                       <span className="purpose">
                         {c.purpose === "server" ? "服务端" : "客户端"}
                       </span>
                       <small className="cell-sub" title={c.sans.join(", ")}>
                         {c.sans.join(", ") || "无 SAN"}
                       </small>
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                       {snapshot.authorities.find((a) => a.id === c.ca_id)?.name}
-                    </td>
-                    <td className="mono">{date(c.not_after)}</td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td className="mono">{date(c.not_after)}</Table.Td>
+                    <Table.Td>
                       <CertBadge certificate={c} />
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                       <div className="row-actions">
                         <IconButton
                           icon={Fingerprint}
@@ -117,11 +116,11 @@ export function CertificatesPage({
                           onClick={() => revoke(c)}
                         />
                       </div>
-                    </td>
-                  </tr>
+                    </Table.Td>
+                  </Table.Tr>
                 ))}
-              </tbody>
-            </table>
+              </Table.Tbody>
+            </Table>
           </div>
         ) : (
           <Empty

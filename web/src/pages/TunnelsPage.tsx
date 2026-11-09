@@ -1,3 +1,4 @@
+import { Tabs, TextInput } from "@mantine/core";
 import { Search } from "lucide-react";
 import { Empty } from "../components/ui";
 import type { Snapshot, Tunnel } from "../api";
@@ -24,31 +25,22 @@ export function TunnelsPage({
     <>
       <section className="panel">
         <div className="list-toolbar">
-          <div className="tabs">
-            {[
-              ["all", "全部隧道"],
-              ["server", "服务端"],
-              ["client", "客户端"],
-            ].map(([id, label]) => (
-              <button
-                className={modeFilter === id ? "selected" : ""}
-                key={id}
-                onClick={() => setModeFilter(id)}
-              >
-                {label}
-                {id === "all" && <span>{snapshot.tunnels.length}</span>}
-              </button>
-            ))}
-          </div>
-          <div className="filter-input">
-            <Search size={16} />
-            <input
-              aria-label="搜索隧道"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索名称或地址…"
-            />
-          </div>
+          <Tabs value={modeFilter} onChange={(v) => setModeFilter(v || "all")}>
+            <Tabs.List>
+              <Tabs.Tab value="all">
+                全部隧道 ({snapshot.tunnels.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="server">服务端</Tabs.Tab>
+              <Tabs.Tab value="client">客户端</Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
+          <TextInput
+            aria-label="搜索隧道"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索名称或地址…"
+            leftSection={<Search size={16} />}
+          />
         </div>
         {query && filteredTunnels.length === 0 ? (
           <Empty icon={Search} title="没有匹配的隧道" />

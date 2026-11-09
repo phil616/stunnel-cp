@@ -1,3 +1,4 @@
+import { Table } from "@mantine/core";
 import { CodeBlock } from "../components/CodeBlock";
 import { CertificateIdentityGuide } from "./CertificateIdentityGuide";
 export function ReferencePage({
@@ -14,46 +15,48 @@ export function ReferencePage({
         <section className="panel docs-section">
           <h2>证书字段</h2>
           <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>字段</th>
-                  <th>填写规则</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>签发 CA</td>
-                  <td>服务端和客户端选择同一 CA。</td>
-                </tr>
-                <tr>
-                  <td>用途</td>
-                  <td>服务端使用 ServerAuth，客户端使用 ClientAuth。</td>
-                </tr>
-                <tr>
-                  <td>CN</td>
-                  <td>
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>字段</Table.Th>
+                  <Table.Th>填写规则</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td>签发 CA</Table.Td>
+                  <Table.Td>服务端和客户端选择同一 CA。</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>用途</Table.Td>
+                  <Table.Td>
+                    服务端使用 ServerAuth，客户端使用 ClientAuth。
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>CN</Table.Td>
+                  <Table.Td>
                     通用名称，最多 64 字符。本项目的服务端证书必须另填 SAN。
-                  </td>
-                </tr>
-                <tr>
-                  <td>SAN</td>
-                  <td>
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>SAN</Table.Td>
+                  <Table.Td>
                     DNS 名称、通配符 DNS 或 IP，逗号或换行分隔；服务端必填。
-                  </td>
-                </tr>
-                <tr>
-                  <td>算法</td>
-                  <td>ECDSA-P256 或 RSA-3072。</td>
-                </tr>
-                <tr>
-                  <td>有效期</td>
-                  <td>
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>算法</Table.Td>
+                  <Table.Td>ECDSA-P256 或 RSA-3072。</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>有效期</Table.Td>
+                  <Table.Td>
                     CA 为 1–7300 天；证书为 1–825 天，不能超过 CA 到期时间。
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </Table.Td>
+                </Table.Tr>
+              </Table.Tbody>
+            </Table>
           </div>
           <p>
             客户端对端身份匹配服务端 SAN。DNS 使用 checkHost 和 SNI，IP 使用
@@ -118,46 +121,50 @@ export function ReferencePage({
           Host，并设置 <code>STCP_SECURE_COOKIE=true</code>；不支持子路径代理。
         </p>
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>环境变量</th>
-                <th>默认值 / 作用</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>环境变量</Table.Th>
+                <Table.Th>默认值 / 作用</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_ADDR</code>
-                </td>
-                <td>127.0.0.1:8080</td>
-              </tr>
-              <tr>
-                <td>
+                </Table.Td>
+                <Table.Td>127.0.0.1:8080</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_DATA_DIR</code>
-                </td>
-                <td>./data</td>
-              </tr>
-              <tr>
-                <td>
+                </Table.Td>
+                <Table.Td>./data</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_SECURE_COOKIE</code>
-                </td>
-                <td>false；HTTPS 反向代理时设为 true</td>
-              </tr>
-              <tr>
-                <td>
+                </Table.Td>
+                <Table.Td>false；HTTPS 反向代理时设为 true</Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_TLS_CERT / STCP_TLS_KEY</code>
-                </td>
-                <td>直接提供 HTTPS 的证书与私钥路径，必须同时设置</td>
-              </tr>
-              <tr>
-                <td>
+                </Table.Td>
+                <Table.Td>
+                  直接提供 HTTPS 的证书与私钥路径，必须同时设置
+                </Table.Td>
+              </Table.Tr>
+              <Table.Tr>
+                <Table.Td>
                   <code>STCP_MASTER_KEY</code>
-                </td>
-                <td>可选，64 位十六进制主密钥，替代 master.key 文件</td>
-              </tr>
-            </tbody>
-          </table>
+                </Table.Td>
+                <Table.Td>
+                  可选，64 位十六进制主密钥，替代 master.key 文件
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tbody>
+          </Table>
         </div>
       </section>
       <section className="panel docs-section">

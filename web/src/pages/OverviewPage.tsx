@@ -1,3 +1,4 @@
+import { UnstyledButton, Button } from "@mantine/core";
 import {
   Activity,
   ArrowRight,
@@ -59,33 +60,45 @@ export function OverviewPage({
             page: "certificates" as Page,
           },
         ].map(({ label, value, icon: Icon, foot, page }) => (
-          <button className="stat-card" key={label} onClick={() => go(page)}>
+          <UnstyledButton
+            className="stat-card"
+            key={label}
+            onClick={() => go(page)}
+          >
             <div>
               <span>{label}</span>
               <Icon size={18} />
             </div>
             <strong>{value}</strong>
             {foot && <small>{foot}</small>}
-          </button>
+          </UnstyledButton>
         ))}
       </div>
       <section className="panel">
         <div className="panel-heading">
           <h2>最近的隧道</h2>
-          <button className="text-link" onClick={() => go("tunnels")}>
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => go("tunnels")}
+          >
             全部
             <ArrowRight size={14} />
-          </button>
+          </Button>
         </div>
         {tunnelTable(snapshot.tunnels.slice(0, 5), true)}
       </section>
       <section className="panel recent-activity">
         <div className="panel-heading">
           <h2>最近活动</h2>
-          <button className="text-link" onClick={() => go("audit")}>
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => go("audit")}
+          >
             全部
             <ArrowRight size={14} />
-          </button>
+          </Button>
         </div>
         {snapshot.audit.length ? (
           <div className="activity-list">

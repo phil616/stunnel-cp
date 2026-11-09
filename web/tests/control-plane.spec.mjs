@@ -76,7 +76,42 @@ test("从初始化到 mTLS 部署包与证书吊销", async ({ page }) => {
   const attachment = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "下载部署包", exact: true }).click();
   const file = await attachment;
-  expect(file.suggestedFilename()).toBe("redis-production.zip");
+  expect(file.suggestedFilename()).toBe("redis-production-unix.zip");
+  await dialog
+    .locator("label")
+    .filter({ hasText: /^Windows$/ })
+    .click();
+  await expect(dialog.locator("pre")).not.toContainText("foreground = yes");
+  await expect(dialog.locator("pre")).not.toContainText("pid =");
+  await expect(dialog.locator("pre")).toContainText("requireCert = yes");
+  const windowsConfig = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "仅配置文件", exact: true }).click();
+  expect((await windowsConfig).suggestedFilename()).toBe(
+    "redis-production-windows.conf",
+  );
+  await dialog.getByRole("button", { name: "关闭对话框" }).click();
+  // The list opens an explicit target chooser and remembers the in-memory selection.
+  await page
+    .getByRole("button", { name: "下载 redis-production 部署包", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "下载部署包", exact: true });
+  await expect(
+    dialog.getByRole("radio", { name: "Windows", exact: true }),
+  ).toBeChecked();
+  const windowsBundle = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "下载部署包", exact: true }).click();
+  expect((await windowsBundle).suggestedFilename()).toBe(
+    "redis-production-windows.zip",
+  );
+  await dialog
+    .locator("label")
+    .filter({ hasText: /^Unix \/ Linux$/ })
+    .click();
+  const unixBundle = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "下载部署包", exact: true }).click();
+  expect((await unixBundle).suggestedFilename()).toBe(
+    "redis-production-unix.zip",
+  );
   await dialog.getByRole("button", { name: "关闭对话框" }).click();
   // Editing persists and client-mode settings are validated by the backend.
   await page.getByRole("button", { name: "编辑 redis-production" }).click();
@@ -238,7 +273,7 @@ test("从初始化到 mTLS 部署包与证书吊销", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "打开导航" }).click();
   await page.getByRole("button", { name: "修改管理员密码" }).click();
-  dialog = page.getByRole("dialog");
+  dialog = page.getByRole("dialog", { name: "修改管理员密码", exact: true });
   await dialog
     .getByLabel("当前密码", { exact: true })
     .fill("integration-password-2026");

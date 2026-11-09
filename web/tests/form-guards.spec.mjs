@@ -53,6 +53,64 @@ test("编辑草稿保护、模式切换、提交失败与密码保护", async ({
       .last()
       .click({ position: { x: 3, y: 3 }, force: true });
   };
+  // Existing records use the saved values as their baseline on every opening.
+  const caResponse = await request.post("/api/authorities", {
+    headers,
+    data: {
+      name: "Guard Root",
+      organization: "Tests",
+      algorithm: "ECDSA-P256",
+      days: 3650,
+    },
+  });
+  expect(caResponse.ok()).toBeTruthy();
+  const authority = await caResponse.json();
+  const certResponse = await request.post("/api/certificates", {
+    headers,
+    data: {
+      ca_id: authority.id,
+      name: "guard-server",
+      common_name: "localhost",
+      purpose: "server",
+      sans: ["localhost"],
+      algorithm: "ECDSA-P256",
+      days: 365,
+    },
+  });
+  expect(certResponse.ok()).toBeTruthy();
+  const certificate = await certResponse.json();
+  const tunnelResponse = await request.post("/api/tunnels", {
+    headers,
+    data: {
+      name: "guard-edit",
+      description: "saved baseline",
+      mode: "server",
+      accept: "127.0.0.1:6380",
+      connect: "127.0.0.1:6379",
+      certificate_id: certificate.id,
+      tls_min: "TLSv1.2",
+      enabled: true,
+    },
+  });
+  expect(tunnelResponse.ok()).toBeTruthy();
+  await page.getByRole("button", { name: "刷新数据", exact: true }).click();
+  await page
+    .getByRole("button", { name: "编辑 guard-edit", exact: true })
+    .click();
+  let saved = page.getByRole("dialog", { name: "编辑隧道配置", exact: true });
+  await saved.getByLabel("描述").fill("changed baseline");
+  await page.keyboard.press("Escape");
+  await expect(confirmation()).toBeVisible();
+  await confirmation().getByRole("button", { name: "继续编辑" }).click();
+  await saved.getByLabel("描述").fill("saved baseline");
+  await saved.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(confirmation()).not.toBeVisible();
+  await page
+    .getByRole("button", { name: "编辑 guard-edit", exact: true })
+    .click();
+  saved = page.getByRole("dialog", { name: "编辑隧道配置", exact: true });
+  await expect(saved.getByLabel("描述")).toHaveValue("saved baseline");
+  await saved.getByRole("button", { name: "取消", exact: true }).click();
   let editor = await open();
   await backdrop();
   await expect(editor).toBeVisible();
@@ -61,6 +119,14 @@ test("编辑草稿保护、模式切换、提交失败与密码保护", async ({
   editor = await open();
   await editor.getByLabel("隧道名称").fill("draft-server");
   await editor.getByLabel("转发目标").fill("127.0.0.1:7777");
+  const unload = page.waitForEvent("dialog");
+  const reload = page.reload({ timeout: 5000 }).catch(() => null);
+  const leavePrompt = await unload;
+  expect(leavePrompt.type()).toBe("beforeunload");
+  await leavePrompt.dismiss();
+  await reload;
+  await expect(editor.getByLabel("隧道名称")).toHaveValue("draft-server");
+
   await backdrop();
   await expect(editor.getByLabel("隧道名称")).toHaveValue("draft-server");
   await expect(editor.getByLabel("转发目标")).toHaveValue("127.0.0.1:7777");
@@ -212,6 +278,43 @@ test("编辑草稿保护、模式切换、提交失败与密码保护", async ({
   expect(
     await page.evaluate(() => JSON.stringify([localStorage, sessionStorage])),
   ).not.toContain("sensitive-guard-test");
+  await editor
+    .getByLabel("新密码", { exact: true })
+    .fill("sensitive-new-password");
+  await editor
+    .getByLabel("确认新密码", { exact: true })
+    .fill("sensitive-new-password");
+  let releasePassword;
+  const heldPassword = new Promise((resolve) => {
+    releasePassword = resolve;
+  });
+  let passwordCalls = 0;
+  await page.route("**/api/account/password", async (route) => {
+    passwordCalls++;
+    await heldPassword;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "密码提交失败" }),
+    });
+  });
+  await editor.getByRole("button", { name: "更新密码", exact: true }).click();
+  await expect(
+    editor.getByRole("button", { name: "取消", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    editor.getByRole("button", { name: "关闭对话框" }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await backdrop();
+  await expect(editor).toBeVisible();
+  expect(passwordCalls).toBe(1);
+  releasePassword();
+  await expect(editor.getByRole("alert")).toContainText("密码提交失败");
+  await expect(editor.getByLabel("新密码", { exact: true })).toHaveValue(
+    "sensitive-new-password",
+  );
+  await page.unroute("**/api/account/password");
   await editor.getByRole("button", { name: "取消", exact: true }).click();
   await discard();
   expect(errors).toEqual([]);

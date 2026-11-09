@@ -23,7 +23,7 @@ API 与 Web 同源，JSON 编码，错误格式为 `{"error":"中文说明","req
 | POST | `/api/tunnels` | 创建隧道 |
 | PUT | `/api/tunnels/{id}` | 完整更新隧道可编辑字段 |
 | DELETE | `/api/tunnels/{id}` | 删除隧道 |
-| GET | `/api/tunnels/{id}/preview` | 返回 `{"config":"..."}` |
+| GET | `/api/tunnels/{id}/preview` | 返回 `{"config":"...","platform":"unix"}` |
 | GET | `/api/tunnels/{id}/config` | 下载 `.conf` |
 | GET | `/api/tunnels/{id}/bundle` | 下载完整部署 ZIP |
 
@@ -62,3 +62,19 @@ API 与 Web 同源，JSON 编码，错误格式为 `{"error":"中文说明","req
 ```
 
 服务端模式使用 `"mode":"server"` 和对应的服务端证书，`peer_name` 留空。IPv6 端点使用 `[::1]:端口`，`peer_name` 中的 IPv6 地址不带方括号。主机端口必须是数字 1–65535。隧道名称为 1–64 位 ASCII 字母、数字、`_` 或 `-`，首字符必须是字母或数字。
+
+## 导出平台
+
+三个隧道导出接口（`preview`、`config`、`bundle`）共用 `?platform=unix|windows` 参数。省略或空值默认为 `unix`；去除两端空白并忽略大小写。不支持其他值或重复参数，返回 `400`。平台仅影响本次导出，不写入隧道或数据库，也不取决于控制台宿主系统。
+
+```text
+GET /api/tunnels/{id}/preview?platform=windows
+GET /api/tunnels/{id}/config?platform=windows
+GET /api/tunnels/{id}/bundle?platform=windows
+```
+
+同一平台下，预览、独立配置和 ZIP 内的 `stunnel.conf` 内容一致。下载文件名为 `<name>-<platform>.conf` / `.zip`。Unix 生成 `foreground = yes`、空 `pid`；Windows 省略这两项，供官方原生控制台 `tstunnel.exe` 使用。TLS、证书校验、CRL 与相对证书路径保持一致。
+
+ZIP 内的 `README.md` 给出对应平台的安装、工作目录、启动与停止方法。Windows 需从官方发行安装器选择可选 Console CLI，并携带同版本所需 DLL；Unix 的 Debian / Ubuntu 示例安装 `stunnel4`，其他系统使用对应包管理器。部署包不包含 stunnel 可执行程序或依赖。
+
+两种平台下载均需登录；停用配置及过期、吊销证书均不能导出，成功导出写入审计记录。

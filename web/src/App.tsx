@@ -1,3 +1,14 @@
+import {
+  Drawer,
+  TextInput,
+  Switch,
+  Button,
+  Table,
+  UnstyledButton,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { TunnelExport } from "./components/TunnelExport";
+import type { Platform } from "./components/TunnelExport";
 import { navigateSafely } from "./hooks/useUnsavedChanges";
 import { OverviewPage } from "./pages/OverviewPage";
 import { TunnelsPage } from "./pages/TunnelsPage";
@@ -12,7 +23,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   BookOpen,
-  CheckCircle2,
   ChevronRight,
   CircleHelp,
   Copy,
@@ -30,7 +40,6 @@ import {
   ShieldCheck,
   ShieldX,
   Trash2,
-  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api, certificateState, date, download, emptySnapshot } from "./api";
@@ -75,27 +84,28 @@ export function App() {
     [fatal, setFatal] = useState(""),
     [page, setPage] = useState<Page>(pageFromHash),
     [editor, setEditor] = useState<Editor>(null),
-    [preview, setPreview] = useState<{ tunnel: Tunnel; config: string } | null>(
-      null,
-    ),
+    [preview, setPreview] = useState<Tunnel | null>(null),
+    [exportTunnel, setExportTunnel] = useState<Tunnel | null>(null),
+    [platform, setPlatform] = useState<Platform>("unix"),
     [detail, setDetail] = useState<Certificate | Authority | null>(null),
     [confirmation, setConfirmation] = useState<Confirmation | null>(null),
     [passwordOpen, setPasswordOpen] = useState(false),
     [busyConfirm, setBusyConfirm] = useState(false),
     [refreshing, setRefreshing] = useState(false),
-    [toast, setToast] = useState<{ message: string; error: boolean } | null>(
-      null,
-    ),
     [mobile, setMobile] = useState(false),
     [query, setQuery] = useState(""),
     [searchOpen, setSearchOpen] = useState(false),
     [modeFilter, setModeFilter] = useState("all");
   const currentPage = useRef(page);
   currentPage.current = page;
-  const notify = useCallback(
-    (message: string, error = false) => setToast({ message, error }),
-    [],
-  );
+  const notify = useCallback((message: string, error = false) => {
+    notifications.show({
+      message,
+      color: error ? "red" : "forest",
+      role: error ? "alert" : "status",
+      autoClose: 4500,
+    });
+  }, []);
   const load = useCallback(async () => {
     const current = await api<Status>("/status");
     setStatus(current);
@@ -120,6 +130,7 @@ export function App() {
       setSearchOpen(false);
       setEditor(null);
       setPreview(null);
+      setExportTunnel(null);
       setDetail(null);
       setConfirmation(null);
       setPasswordOpen(false);
@@ -143,11 +154,6 @@ export function App() {
       window.removeEventListener("hashchange", hash);
     };
   }, [load, notify]);
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4500);
-    return () => clearTimeout(timer);
-  }, [toast]);
   const go = (next: Page) =>
     navigateSafely(() => {
       history.pushState(null, "", `#${next}`);
@@ -174,13 +180,7 @@ export function App() {
   const getCertificate = (id: string) =>
     snapshot.certificates.find((c) => c.id === id);
   const exportFile = (path: string) => act(() => download(path), "下载已开始");
-  const showPreview = (tunnel: Tunnel) =>
-    act(async () => {
-      const data = await api<{ config: string }>(
-        `/tunnels/${tunnel.id}/preview`,
-      );
-      setPreview({ tunnel, config: data.config });
-    });
+  const showPreview = (tunnel: Tunnel) => setPreview(tunnel);
   const toggle = (t: Tunnel) =>
     act(
       () =>
@@ -246,9 +246,9 @@ export function App() {
         <ShieldX size={35} />
         <h2>暂时无法连接控制台</h2>
         <p>{fatal}</p>
-        <button className="button secondary" onClick={() => location.reload()}>
+        <Button variant="default" onClick={() => location.reload()}>
           重新连接
-        </button>
+        </Button>
       </div>
     );
   if (!status)
@@ -273,21 +273,21 @@ export function App() {
   function tunnelTable(items: Tunnel[], compact = false) {
     return items.length ? (
       <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>隧道名称</th>
-              <th>转发路径</th>
-              {!compact && <th>关联证书</th>}
-              <th>配置状态</th>
-              <th className="align-right">操作</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>隧道名称</Table.Th>
+              <Table.Th>转发路径</Table.Th>
+              {!compact && <Table.Th>关联证书</Table.Th>}
+              <Table.Th>配置状态</Table.Th>
+              <Table.Th className="align-right">操作</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
             {items.map((t) => (
-              <tr key={t.id}>
-                <td>
-                  <button
+              <Table.Tr key={t.id}>
+                <Table.Td>
+                  <UnstyledButton
                     className="resource-name"
                     onClick={() => showPreview(t)}
                   >
@@ -300,29 +300,30 @@ export function App() {
                       <strong>{t.name}</strong>
                       <small>{t.mode === "server" ? "服务端" : "客户端"}</small>
                     </span>
-                  </button>
-                </td>
-                <td>
+                  </UnstyledButton>
+                </Table.Td>
+                <Table.Td>
                   <div className="route">
                     <code>{t.accept}</code>
                     <ArrowRight size={12} />
                     <code>{t.connect}</code>
                   </div>
-                </td>
+                </Table.Td>
                 {!compact && (
-                  <td>
-                    <button
-                      className="text-link"
+                  <Table.Td>
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
                       onClick={() => {
                         const c = getCertificate(t.certificate_id);
                         if (c) setDetail(c);
                       }}
                     >
                       {getCertificate(t.certificate_id)?.name || "—"}
-                    </button>
-                  </td>
+                    </Button>
+                  </Table.Td>
                 )}
-                <td>
+                <Table.Td>
                   <Badge
                     kind={
                       !t.enabled ? "disabled" : ready(t) ? "valid" : "expired"
@@ -330,19 +331,15 @@ export function App() {
                   >
                     {!t.enabled ? "已停用" : ready(t) ? "可部署" : "证书异常"}
                   </Badge>
-                </td>
-                <td>
+                </Table.Td>
+                <Table.Td>
                   <div className="row-actions">
                     {!compact && (
-                      <button
-                        className={`switch ${t.enabled ? "on" : ""}`}
-                        role="switch"
-                        aria-checked={t.enabled}
+                      <Switch
+                        checked={t.enabled}
                         aria-label={`${t.enabled ? "停用" : "启用"} ${t.name}`}
-                        onClick={() => toggle(t)}
-                      >
-                        <span />
-                      </button>
+                        onChange={() => toggle(t)}
+                      />
                     )}
                     <IconButton
                       icon={FileCode2}
@@ -360,7 +357,7 @@ export function App() {
                       icon={Download}
                       label={`下载 ${t.name} 部署包`}
                       disabled={!ready(t)}
-                      onClick={() => exportFile(`/tunnels/${t.id}/bundle`)}
+                      onClick={() => setExportTunnel(t)}
                     />
                     {!compact && (
                       <IconButton
@@ -371,11 +368,11 @@ export function App() {
                       />
                     )}
                   </div>
-                </td>
-              </tr>
+                </Table.Td>
+              </Table.Tr>
             ))}
-          </tbody>
-        </table>
+          </Table.Tbody>
+        </Table>
       </div>
     ) : (
       <Empty
@@ -386,20 +383,14 @@ export function App() {
       />
     );
   }
-  return (
-    <div className="app-shell">
-      {mobile && (
-        <button
-          className="sidebar-backdrop"
-          aria-label="关闭导航"
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <aside className={`sidebar ${mobile ? "is-open" : ""}`}>
+  const username = status.username;
+  function sidebarContent() {
+    return (
+      <>
         <Brand />
         <nav>
           {pages.map(({ id, label, icon: Icon }) => (
-            <button
+            <UnstyledButton
               key={id}
               className={`nav-item ${page === id ? "active" : ""}`}
               onClick={() => go(id)}
@@ -409,34 +400,37 @@ export function App() {
               {id === "tunnels" && snapshot.tunnels.length > 0 && (
                 <span className="nav-count">{snapshot.tunnels.length}</span>
               )}
-            </button>
+            </UnstyledButton>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <nav aria-label="说明页面">
             {helpPages.map((item) => (
-              <button
+              <UnstyledButton
                 key={item.id}
                 className={`nav-item ${page === item.id ? "active" : ""}`}
                 onClick={() => go(item.id)}
               >
                 <BookOpen size={18} />
                 <span>{item.label}</span>
-              </button>
+              </UnstyledButton>
             ))}
           </nav>
           <div className="user">
             <span className="user-avatar">
-              {status.username.slice(0, 1).toUpperCase()}
+              {username.slice(0, 1).toUpperCase()}
             </span>
             <span>
-              <button
+              <UnstyledButton
                 className="user-name"
                 aria-label="修改管理员密码"
-                onClick={() => setPasswordOpen(true)}
+                onClick={() => {
+                  setMobile(false);
+                  setPasswordOpen(true);
+                }}
               >
-                <strong>{status.username}</strong>
-              </button>
+                <strong>{username}</strong>
+              </UnstyledButton>
             </span>
             <IconButton
               icon={LogOut}
@@ -457,23 +451,39 @@ export function App() {
             />
           </div>
         </div>
-      </aside>
+      </>
+    );
+  }
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">{sidebarContent()}</aside>
+      <Drawer
+        opened={mobile}
+        onClose={() => setMobile(false)}
+        title="工作空间"
+        size={264}
+        padding="md"
+        closeButtonProps={{ "aria-label": "关闭导航" }}
+      >
+        <div className="mobile-sidebar">{sidebarContent()}</div>
+      </Drawer>
+
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb">
-            <button
-              className="mobile-menu icon-button"
+            <UnstyledButton
+              className="mobile-menu"
               aria-label="打开导航"
               onClick={() => setMobile(true)}
             >
               <Menu size={20} />
-            </button>
+            </UnstyledButton>
             <span>工作空间</span>
             <ChevronRight size={13} />
             <strong>{current}</strong>
           </div>
           <div className="top-actions">
-            <button
+            <UnstyledButton
               className="search-trigger"
               onClick={() => {
                 setSearchOpen(true);
@@ -482,7 +492,7 @@ export function App() {
             >
               <Search size={15} />
               <span>搜索资源</span>
-            </button>
+            </UnstyledButton>
             <span
               className="system-status"
               role="img"
@@ -519,8 +529,8 @@ export function App() {
             {["overview", "tunnels", "certificates", "authorities"].includes(
               page,
             ) && (
-              <button
-                className="button primary"
+              <Button
+                variant="filled"
                 onClick={() =>
                   setEditor({
                     type:
@@ -538,7 +548,7 @@ export function App() {
                   : page === "certificates"
                     ? "签发证书"
                     : "新建隧道"}
-              </button>
+              </Button>
             )}
           </div>
           {page === "overview" && (
@@ -615,62 +625,21 @@ export function App() {
           onSwitch={(type) => setEditor({ type })}
         />
       )}
-      {preview && (
-        <Modal
-          title={preview.tunnel.name}
-          description="stunnel.conf"
-          onClose={() => setPreview(null)}
-          wide
-        >
-          <div className="preview-meta">
-            <Badge kind={preview.tunnel.mode === "server" ? "valid" : "blue"}>
-              {preview.tunnel.mode === "server" ? "服务端模式" : "客户端模式"}
-            </Badge>
-            <span>{preview.tunnel.tls_min}+</span>
-            <button className="text-link" onClick={() => copy(preview.config)}>
-              <Copy size={14} />
-              复制配置
-            </button>
-          </div>
-          <pre className="config-preview">
-            <code>
-              {preview.config.split("\n").map((line, i) => (
-                <span
-                  className={
-                    line.startsWith(";")
-                      ? "code-comment"
-                      : line.startsWith("[")
-                        ? "code-section"
-                        : ""
-                  }
-                  key={i}
-                >
-                  <span className="line-number">{i + 1}</span>
-                  {line || " "}
-                  {"\n"}
-                </span>
-              ))}
-            </code>
-          </pre>
-          <div className="modal-actions">
-            <button
-              className="button secondary"
-              disabled={!ready(preview.tunnel)}
-              onClick={() => exportFile(`/tunnels/${preview.tunnel.id}/config`)}
-            >
-              <FileCode2 size={15} />
-              仅配置文件
-            </button>
-            <button
-              className="button primary"
-              disabled={!ready(preview.tunnel)}
-              onClick={() => exportFile(`/tunnels/${preview.tunnel.id}/bundle`)}
-            >
-              <Download size={15} />
-              下载部署包
-            </button>
-          </div>
-        </Modal>
+      {(preview || exportTunnel) && (
+        <TunnelExport
+          key={`${(preview || exportTunnel)!.id}:${!!preview}`}
+          tunnel={(preview || exportTunnel)!}
+          preview={!!preview}
+          platform={platform}
+          setPlatform={setPlatform}
+          onClose={() => {
+            setPreview(null);
+            setExportTunnel(null);
+          }}
+          ready={ready((preview || exportTunnel)!)}
+          notify={notify}
+          copy={copy}
+        />
       )}
       {detail && (
         <Modal
@@ -736,14 +705,11 @@ export function App() {
             </div>
           </dl>
           <div className="modal-actions">
-            <button
-              className="button secondary"
-              onClick={() => setDetail(null)}
-            >
+            <Button variant="default" onClick={() => setDetail(null)}>
               关闭
-            </button>
-            <button
-              className="button primary"
+            </Button>
+            <Button
+              variant="filled"
               disabled={
                 "purpose" in detail &&
                 !["valid", "expiring"].includes(certificateState(detail))
@@ -758,7 +724,7 @@ export function App() {
             >
               <Download size={15} />
               {"purpose" in detail ? "下载证书包" : "下载 CA 证书"}
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
@@ -778,15 +744,16 @@ export function App() {
             <p>{confirmation.description}</p>
           </div>
           <div className="modal-actions">
-            <button
-              className="button secondary"
+            <Button
+              variant="default"
               disabled={busyConfirm}
               onClick={() => setConfirmation(null)}
             >
               取消
-            </button>
-            <button
-              className="button danger"
+            </Button>
+            <Button
+              variant="light"
+              color="red"
               disabled={busyConfirm}
               onClick={async () => {
                 setBusyConfirm(true);
@@ -802,22 +769,21 @@ export function App() {
             >
               {busyConfirm && <LoaderCircle size={15} className="spin" />}
               确认操作
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
       {searchOpen && (
         <Modal title="搜索工作空间" onClose={() => setSearchOpen(false)}>
-          <div className="filter-input global-search">
-            <Search size={17} />
-            <input
-              autoFocus
-              aria-label="搜索所有资源"
-              placeholder="输入名称…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+          <TextInput
+            autoFocus
+            aria-label="搜索所有资源"
+            placeholder="输入名称…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            leftSection={<Search size={17} />}
+            mb="lg"
+          />
           <div className="search-results">
             {[
               {
@@ -839,7 +805,7 @@ export function App() {
               <div key={group.page}>
                 <span className="mini-label">{group.title}</span>
                 {group.items.slice(0, 6).map((item) => (
-                  <button
+                  <UnstyledButton
                     key={item.id}
                     onClick={() => {
                       setSearchOpen(false);
@@ -852,27 +818,13 @@ export function App() {
                   >
                     <span>{item.name}</span>
                     <ArrowUpRight size={14} />
-                  </button>
+                  </UnstyledButton>
                 ))}
                 {group.items.length === 0 && <p>无匹配资源</p>}
               </div>
             ))}
           </div>
         </Modal>
-      )}
-      {toast && (
-        <div
-          className={`toast ${toast.error ? "toast-error" : ""}`}
-          role={toast.error ? "alert" : "status"}
-        >
-          {toast.error ? <ShieldX size={18} /> : <CheckCircle2 size={18} />}
-          <span>{toast.message}</span>
-          <IconButton
-            icon={X}
-            label="关闭通知"
-            onClick={() => setToast(null)}
-          />
-        </div>
       )}
     </div>
   );

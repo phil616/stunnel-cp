@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -23,6 +24,10 @@ func TestStunnelMTLS(t *testing.T) {
 	binary := os.Getenv("STCP_STUNNEL_BIN")
 	if binary == "" {
 		t.Skip("set STCP_STUNNEL_BIN to run real stunnel integration")
+	}
+	platform := PlatformUnix
+	if runtime.GOOS == "windows" {
+		platform = PlatformWindows
 	}
 	s := testService(t)
 	ctx := context.Background()
@@ -73,7 +78,7 @@ func TestStunnelMTLS(t *testing.T) {
 	server := makeTunnel("server", "server", serverAddr, backend.Addr().String(), serverCert.ID, "")
 	client := makeTunnel("client", "client", clientAddr, serverAddr, clientCert.ID, "localhost")
 	extract := func(tunnel domain.Tunnel) string {
-		data, _, err := s.ExportTunnel(ctx, tunnel.ID, true)
+		data, _, err := s.ExportTunnel(ctx, tunnel.ID, true, platform)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -170,6 +175,18 @@ func TestStunnelMTLS(t *testing.T) {
 	if err = exchange(conn); err != nil {
 		t.Fatalf("double stunnel mTLS forwarding failed: %v", err)
 	}
+	// Exercise stunnel's own checkHost/SNI rejection, not just Go's TLS verifier.
+	wrongAddr := freeAddress()
+	wrong := makeTunnel("wrong-identity", "client", wrongAddr, serverAddr, clientCert.ID, "wrong.invalid")
+	stopWrong := start(extract(wrong), wrongAddr)
+	wrongConn, err := net.DialTimeout("tcp", wrongAddr, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = exchange(wrongConn); err == nil {
+		t.Fatal("stunnel client accepted a mismatched server identity")
+	}
+	stopWrong()
 	roots := x509.NewCertPool()
 	roots.AppendCertsFromPEM([]byte(a.PEM))
 	pair, err := tls.LoadX509KeyPair(filepath.Join(clientDir, "certificates/cert.pem"), filepath.Join(clientDir, "certificates/key.pem"))

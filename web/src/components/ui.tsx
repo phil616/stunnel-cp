@@ -1,4 +1,3 @@
-import { useId, cloneElement, isValidElement } from "react";
 import {
   ActionIcon,
   Badge as MantineBadge,
@@ -7,7 +6,7 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import type { ReactNode, ReactElement } from "react";
+import type { ReactNode } from "react";
 import { Shield, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { certificateState } from "../api";
@@ -92,30 +91,6 @@ export function IconButton({
         <Icon size={17} />
       </ActionIcon>
     </Tooltip>
-  );
-}
-export function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  const id = useId();
-  const content = isValidElement(children)
-    ? cloneElement(
-        children as ReactElement<{ id?: string; "aria-describedby"?: string }>,
-        { id, "aria-describedby": hint ? id + "-hint" : undefined },
-      )
-    : children;
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      {content}
-      {hint && <small id={id + "-hint"}>{hint}</small>}
-    </div>
   );
 }
 export function Empty({

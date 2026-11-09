@@ -1,6 +1,7 @@
 import { createTheme } from "@mantine/core";
 export const theme = createTheme({
   primaryColor: "forest",
+  primaryShade: 9,
   defaultRadius: "md",
   fontFamily:
     'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
@@ -26,6 +27,13 @@ export const theme = createTheme({
     xl: "1.25rem",
   },
   components: {
+    Table: {
+      defaultProps: {
+        verticalSpacing: "sm",
+        horizontalSpacing: "md",
+        highlightOnHover: true,
+      },
+    },
     Button: { defaultProps: { size: "sm", type: "button" } },
     TextInput: { defaultProps: { size: "sm", withAsterisk: false } },
     PasswordInput: { defaultProps: { size: "sm", withAsterisk: false } },

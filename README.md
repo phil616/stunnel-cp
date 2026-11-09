@@ -214,3 +214,18 @@ web/
 ```
 
 领域和业务代码不依赖 HTTP；HTTP 层不接触原始私钥。数据库负责外键与唯一性约束，业务层串行化签发、吊销与导出操作。默认 SQLite WAL 模式，单连接池控制写入竞争。前端依赖通过 `package-lock.json` 固定，Go 依赖通过 `go.mod` / `go.sum` 固定。
+
+### 平台与部署包
+
+下载时选择 **Windows** 或 **Unix / Linux**，预览会随目标平台同步变化。平台仅影响本次导出，默认 Unix，不保存在隧道中。配置与 ZIP 分别命名为 `<name>-<platform>.conf` / `.zip`，ZIP 内固定使用 `stunnel.conf`。
+
+- Unix：生成前台运行及空 PID 文件设置。Debian / Ubuntu 安装 `stunnel4` 后，在解压目录执行 `stunnel4 ./stunnel.conf`；其他 Unix / macOS 按包管理器确定命令名。
+- Windows：省略 Unix 专用 `foreground`、`pid`。从 [官方安装器](https://www.stunnel.org/downloads.html) 选择可选原生 Console CLI `tstunnel.exe`，携带同版本所需 OpenSSL / 运行时 DLL，在解压目录通过 PowerShell 执行 `.\tstunnel.exe .\stunnel.conf`。无需 GUI 或注册服务。
+
+两种平台均验证证书链、要求对端证书并检查 CRL。ZIP 内 README 包含工作目录、私钥保护、CRL 分发及停止方式，不包含 stunnel 程序或依赖。API 详见 [HTTP API](docs/API.md)。
+
+### 界面与验证
+
+界面使用固定版本的 Mantine 9.8、React 与 Vite，所有静态资源嵌入 Go，无 CDN 依赖。创建 CA、签发证书、隧道编辑及修改密码时，点击遮罩不会关闭表单；有未保存修改时，Esc、关闭、取消和页内导航均需确认，提交中禁止退出或重复提交。模式切换分别保留两组端点草稿，提交失败保留内容；敏感草稿仅在组件内存中。
+
+`npm run test:e2e --prefix web` 验证这些交互和平台导出。CI 同时使用 Linux `stunnel4` 及 Windows 官方 `tstunnel.exe` 测试实际 mTLS 转发、客户端证书要求、名称校验和 CRL 吊销。Windows 测试脚本为 `.github/scripts/test-stunnel-windows.ps1`，下载官方 5.82 安装器并核对 SHA-256，解压可选 CLI 和匹配 DLL，不安装系统服务。

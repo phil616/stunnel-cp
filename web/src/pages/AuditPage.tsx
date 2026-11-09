@@ -1,3 +1,4 @@
+import { Table } from "@mantine/core";
 import { Activity, Check } from "lucide-react";
 import { Empty } from "../components/ui";
 import { date, dateTime } from "../api";
@@ -12,40 +13,40 @@ export function AuditPage({ snapshot }: { snapshot: Snapshot }) {
       </div>
       {snapshot.audit.length ? (
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>操作</th>
-                <th>资源类型</th>
-                <th>资源名称</th>
-                <th>记录编号</th>
-                <th>时间</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>操作</Table.Th>
+                <Table.Th>资源类型</Table.Th>
+                <Table.Th>资源名称</Table.Th>
+                <Table.Th>记录编号</Table.Th>
+                <Table.Th>时间</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {snapshot.audit.map((a) => (
-                <tr key={a.id}>
-                  <td>
+                <Table.Tr key={a.id}>
+                  <Table.Td>
                     <span className="audit-action">
                       <span className="activity-icon">
                         <Check size={13} />
                       </span>
                       {actionLabel(a.action)}
                     </span>
-                  </td>
-                  <td>{resourceLabel(a.resource)}</td>
-                  <td>{a.name}</td>
-                  <td className="mono muted">
+                  </Table.Td>
+                  <Table.Td>{resourceLabel(a.resource)}</Table.Td>
+                  <Table.Td>{a.name}</Table.Td>
+                  <Table.Td className="mono muted">
                     #{a.id.toString().padStart(4, "0")}
-                  </td>
-                  <td className="mono muted">
+                  </Table.Td>
+                  <Table.Td className="mono muted">
                     {date(a.created_at)}{" "}
                     {dateTime(a.created_at).split(" ").pop()}
-                  </td>
-                </tr>
+                  </Table.Td>
+                </Table.Tr>
               ))}
-            </tbody>
-          </table>
+            </Table.Tbody>
+          </Table>
         </div>
       ) : (
         <Empty icon={Activity} title="还没有操作记录" />

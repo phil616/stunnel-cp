@@ -118,21 +118,37 @@ func New(svc *service.Service, cfg config.Config, assets fs.FS, logger *slog.Log
 		return nil
 	}))
 	mux.HandleFunc("GET /api/tunnels/{id}/preview", s.protect(func(w http.ResponseWriter, r *http.Request) error {
+		platform, err := exportPlatform(r)
+		if err != nil {
+			return err
+		}
 		t, err := svc.Store.Tunnel(r.Context(), r.PathValue("id"))
 		if err != nil {
 			return err
 		}
-		return writeJSON(w, 200, map[string]string{"config": service.Config(t)})
+		config, err := service.Config(t, platform)
+		if err != nil {
+			return err
+		}
+		return writeJSON(w, 200, map[string]string{"config": config, "platform": string(platform)})
 	}))
 	mux.HandleFunc("GET /api/tunnels/{id}/config", s.protect(func(w http.ResponseWriter, r *http.Request) error {
-		data, name, err := svc.ExportTunnel(r.Context(), r.PathValue("id"), false)
+		platform, err := exportPlatform(r)
+		if err != nil {
+			return err
+		}
+		data, name, err := svc.ExportTunnel(r.Context(), r.PathValue("id"), false, platform)
 		if err != nil {
 			return err
 		}
 		return download(w, data, name, "text/plain; charset=utf-8")
 	}))
 	mux.HandleFunc("GET /api/tunnels/{id}/bundle", s.protect(func(w http.ResponseWriter, r *http.Request) error {
-		data, name, err := svc.ExportTunnel(r.Context(), r.PathValue("id"), true)
+		platform, err := exportPlatform(r)
+		if err != nil {
+			return err
+		}
+		data, name, err := svc.ExportTunnel(r.Context(), r.PathValue("id"), true, platform)
 		if err != nil {
 			return err
 		}
@@ -526,4 +542,15 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return s.session(w, r, username)
+}
+
+func exportPlatform(r *http.Request) (service.Platform, error) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return "", service.Invalid("导出参数格式错误")
+	}
+	if len(values["platform"]) > 1 {
+		return "", service.Invalid("目标平台只能指定一次")
+	}
+	return service.ParsePlatform(values.Get("platform"))
 }

@@ -1,10 +1,17 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
-import { LoaderCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Alert,
+  Button,
+  PasswordInput,
+  Stack,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { api } from "../api";
 import type { Status } from "../api";
 import { errorMessage } from "../format";
-import { Brand, Field } from "./ui";
+import { Brand } from "./ui";
 export function Login({
   status,
   onSuccess,
@@ -14,65 +21,69 @@ export function Login({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setBusy(true);
-    setError("");
-    try {
-      await api(status.setup_required ? "/auth/setup" : "/auth/login", "POST", {
-        username: f.get("username"),
-        password: f.get("password"),
-      });
-      await onSuccess();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const submitting = useRef(false);
+  const form = useForm({ initialValues: { username: "admin", password: "" } });
   return (
     <main className="login-page">
       <div className="login-card">
         <Brand />
-        <form onSubmit={submit} className="auth-form">
-          <h1>{status.setup_required ? "创建管理员" : "登录"}</h1>
-          <Field label="用户名">
-            <input
-              name="username"
+        <form
+          onSubmit={form.onSubmit(async (values) => {
+            if (submitting.current) return;
+            submitting.current = true;
+            setBusy(true);
+            setError("");
+            try {
+              await api(
+                status.setup_required ? "/auth/setup" : "/auth/login",
+                "POST",
+                values,
+              );
+              await onSuccess();
+            } catch (e) {
+              setError(errorMessage(e));
+            } finally {
+              submitting.current = false;
+              setBusy(false);
+            }
+          })}
+        >
+          <Stack>
+            <Title order={1} size="h2">
+              {status.setup_required ? "创建管理员" : "登录"}
+            </Title>
+            <TextInput
+              label="用户名"
               autoComplete="username"
-              defaultValue="admin"
               required
               minLength={3}
               maxLength={32}
-              pattern="[a-zA-Z0-9_.\-]+"
+              pattern={"[a-zA-Z0-9_.\\-]+"}
               autoFocus
+              disabled={busy}
+              {...form.getInputProps("username")}
             />
-          </Field>
-          <Field
-            label="密码"
-            hint={status.setup_required ? "12–72 字节。" : undefined}
-          >
-            <input
-              name="password"
-              type="password"
+            <PasswordInput
+              label="密码"
+              description={status.setup_required ? "12–72 字节" : undefined}
               autoComplete={
                 status.setup_required ? "new-password" : "current-password"
               }
               required
               minLength={status.setup_required ? 12 : 1}
               maxLength={72}
+              disabled={busy}
+              {...form.getInputProps("password")}
             />
-          </Field>
-          {error && (
-            <div className="form-error" role="alert">
-              {error}
-            </div>
-          )}
-          <button className="button primary full" disabled={busy}>
-            {busy && <LoaderCircle className="spin" size={17} />}{" "}
-            {status.setup_required ? "创建管理员" : "登录"}
-          </button>
+            {error && (
+              <Alert color="red" role="alert">
+                {error}
+              </Alert>
+            )}
+            <Button type="submit" loading={busy} fullWidth>
+              {status.setup_required ? "创建管理员" : "登录"}
+            </Button>
+          </Stack>
         </form>
       </div>
     </main>
