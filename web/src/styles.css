@@ -2041,3 +2041,7 @@ td {
     font-weight: 600;
   }
 }
+.form-fields {padding:0;margin:0;border:0;min-width:0}
+.control-label {font-size:14px;font-weight:500;margin-bottom:7px}
+
+.status-badge {display:inline-flex;min-width:max-content;flex-shrink:0}

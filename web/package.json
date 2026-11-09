@@ -9,6 +9,11 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@mantine/core": "9.8.0",
+    "@mantine/form": "9.8.0",
+    "@mantine/hooks": "9.8.0",
+    "@mantine/notifications": "9.8.0",
+    "get-nonce": "1.0.1",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

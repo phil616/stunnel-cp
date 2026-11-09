@@ -88,7 +88,10 @@ test("从初始化到 mTLS 部署包与证书吊销", async ({ page }) => {
   // Open reference documentation without losing an unfinished client form.
   await page.getByRole("button", { name: "新建隧道", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "客户端", exact: true }).click();
+  await dialog
+    .locator("label")
+    .filter({ hasText: /^客户端$/ })
+    .click();
   await dialog.getByLabel("隧道名称").fill("pending-client");
   await dialog.getByLabel("转发目标").fill("10.0.0.8:6380");
   await dialog.getByLabel("服务端证书身份").fill("redis.example.com");
@@ -170,6 +173,10 @@ test("从初始化到 mTLS 部署包与证书吊销", async ({ page }) => {
     "redis.example.com",
   );
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "放弃未保存的修改？", exact: true })
+    .getByRole("button", { name: "放弃修改", exact: true })
+    .click();
   for (const [label, section] of [
     ["部署说明", "部署步骤"],
     ["证书说明", "吊销与 CRL"],

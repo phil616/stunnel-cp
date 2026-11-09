@@ -151,6 +151,17 @@ func New(svc *service.Service, cfg config.Config, assets fs.FS, logger *slog.Log
 				return
 			}
 		}
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			index, err := fs.ReadFile(assets, "index.html")
+			if err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			nonce, _ := r.Context().Value(requestIDKey).(string)
+			html := strings.ReplaceAll(string(index), "__STCP_CSP_NONCE__", nonce)
+			http.ServeContent(w, r, "index.html", time.Time{}, strings.NewReader(html))
+			return
+		}
 		files.ServeHTTP(w, r)
 	})
 	return s.middleware(mux)
@@ -432,7 +443,7 @@ func (w *response) Write(data []byte) (int, error) {
 func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		buf := make([]byte, 12)
+		buf := make([]byte, 16)
 		if _, err := rand.Read(buf); err != nil {
 			http.Error(w, "entropy unavailable", 500)
 			return
@@ -445,7 +456,7 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		rw.Header().Set("X-Frame-Options", "DENY")
 		rw.Header().Set("Referrer-Policy", "no-referrer")
 		rw.Header().Set("Cache-Control", "no-store")
-		rw.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		rw.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-"+id+"'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 		if s.config.SecureCookie {
 			rw.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}

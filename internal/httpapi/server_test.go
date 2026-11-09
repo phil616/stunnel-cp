@@ -164,3 +164,29 @@ func TestPasswordRotationInvalidatesOtherSessions(t *testing.T) {
 	requireStatus(t, request(t, h, "POST", "/api/auth/login", map[string]string{"username": "admin", "password": "correct-horse-battery"}, nil, true, ""), 401)
 	requireStatus(t, request(t, h, "POST", "/api/auth/login", map[string]string{"username": "admin", "password": "new-strong-password"}, nil, true, ""), 200)
 }
+
+func TestStylesHavePerResponseCSPNonce(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "nonce.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	vault, _ := secure.New(bytes.Repeat([]byte{4}, 32))
+	assets := fstest.MapFS{"index.html": {Data: []byte(`<html><meta name="csp-nonce" content="__STCP_CSP_NONCE__"></html>`)}}
+	h := New(service.New(db, vault), config.Config{SessionTTL: time.Hour}, assets, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	first := request(t, h, "GET", "/", nil, nil, false, "")
+	requireStatus(t, first, 200)
+	nonce := first.Header().Get("X-Request-ID")
+	if len(nonce) != 32 || !strings.Contains(first.Body.String(), `content="`+nonce+`"`) {
+		t.Fatal("HTML nonce not populated")
+	}
+	policy := first.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "style-src 'self' 'nonce-"+nonce+"'") || !strings.Contains(policy, "script-src 'self';") {
+		t.Fatal("unexpected CSP")
+	}
+	second := request(t, h, "GET", "/index.html", nil, nil, false, "")
+	requireStatus(t, second, 200)
+	if second.Header().Get("X-Request-ID") == nonce || strings.Contains(second.Body.String(), "__STCP_CSP_NONCE__") {
+		t.Fatal("nonce reused or missing")
+	}
+}

@@ -1,20 +1,31 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useRef, useState } from "react";
 import {
-  Server,
-  Globe2,
-  ArrowRight,
-  LoaderCircle,
-  ShieldCheck,
-  KeyRound,
-  Check,
-} from "lucide-react";
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  NativeSelect,
+  NumberInput,
+  SegmentedControl,
+  Stack,
+  Textarea,
+  TextInput,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { api, certificateState, date } from "../api";
 import type { Snapshot, Tunnel } from "../api";
 import { errorMessage } from "../format";
-import { Field, Modal } from "./ui";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
+import { Modal } from "./ui";
 import { CertificateHelp } from "./CertificateHelp";
 export type Editor = { type: "ca" | "cert" | "tunnel"; tunnel?: Tunnel } | null;
+type Mode = "server" | "client";
+type Endpoint = {
+  accept: string;
+  connect: string;
+  certificate_id: string;
+  peer_name: string;
+};
 export function EditorModal({
   editor,
   snapshot,
@@ -28,11 +39,52 @@ export function EditorModal({
   onSaved: () => Promise<void>;
   onSwitch: (type: "ca" | "cert" | "tunnel") => void;
 }) {
-  const t = editor.tunnel,
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [mode, setMode] = useState(t?.mode || "server"),
-    [purpose, setPurpose] = useState("server");
+  const t = editor.tunnel;
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const submitting = useRef(false);
+  const endpoint = (mode: Mode): Endpoint =>
+    t?.mode === mode
+      ? {
+          accept: t.accept,
+          connect: t.connect,
+          certificate_id: t.certificate_id,
+          peer_name: t.peer_name,
+        }
+      : {
+          accept: mode === "server" ? "0.0.0.0:6380" : "127.0.0.1:16379",
+          connect:
+            mode === "server" ? "127.0.0.1:6379" : "redis.example.com:6380",
+          certificate_id: "",
+          peer_name: "",
+        };
+  const form = useForm({
+    mode: "controlled",
+    initialValues: {
+      name: t?.name || "",
+      description: t?.description || "",
+      organization: "",
+      common_name: "",
+      ca_id: "",
+      algorithm: "ECDSA-P256",
+      days:
+        editor.type === "ca"
+          ? (3650 as number | string)
+          : (365 as number | string),
+      purpose: "server" as Mode,
+      sans: "",
+      mode: t?.mode || ("server" as Mode),
+      endpoints: { server: endpoint("server"), client: endpoint("client") },
+      tls_min: t?.tls_min || "TLSv1.2",
+      enabled: t?.enabled ?? true,
+    },
+  });
+  const guard = useUnsavedChanges(
+    form.isDirty(),
+    busy,
+    () => submitting.current,
+  );
+  const mode = form.values.mode;
   const usableCAs = snapshot.authorities.filter(
     (a) => new Date(a.not_after).getTime() > Date.now(),
   );
@@ -45,376 +97,322 @@ export function EditorModal({
   const blocked =
     (editor.type === "cert" && !usableCAs.length) ||
     (editor.type === "tunnel" && !certificates.length);
-  const close = () => {
-    if (!busy) onClose();
-  };
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const get = (key: string) => String(f.get(key) || "").trim();
+  const switchEditor = (next: "ca" | "cert" | "tunnel") =>
+    guard.requestClose(() => onSwitch(next));
+  async function submit(values: typeof form.values) {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
       if (editor.type === "ca")
         await api("/authorities", "POST", {
-          name: get("name"),
-          organization: get("organization"),
-          algorithm: get("algorithm"),
-          days: Number(get("days")),
+          name: values.name.trim(),
+          organization: values.organization.trim(),
+          algorithm: values.algorithm,
+          days: Number(values.days),
         });
       else if (editor.type === "cert")
         await api("/certificates", "POST", {
-          name: get("name"),
-          common_name: get("common_name"),
-          ca_id: get("ca_id"),
-          purpose,
-          algorithm: get("algorithm"),
-          days: Number(get("days")),
-          sans: get("sans")
-            .split(/[\s,，]+/)
-            .filter(Boolean),
+          name: values.name.trim(),
+          common_name: values.common_name.trim(),
+          ca_id: values.ca_id,
+          purpose: values.purpose,
+          algorithm: values.algorithm,
+          days: Number(values.days),
+          sans: values.sans.split(/[\s,，]+/).filter(Boolean),
         });
-      else
+      else {
+        const e = values.endpoints[mode];
         await api(t ? `/tunnels/${t.id}` : "/tunnels", t ? "PUT" : "POST", {
-          name: get("name"),
-          description: get("description"),
+          name: values.name.trim(),
+          description: values.description.trim(),
           mode,
-          accept: get("accept"),
-          connect: get("connect"),
-          certificate_id: get("certificate_id"),
-          peer_name: get("peer_name"),
-          tls_min: get("tls_min"),
-          enabled: f.get("enabled") === "on",
+          accept: e.accept.trim(),
+          connect: e.connect.trim(),
+          certificate_id: e.certificate_id,
+          peer_name: mode === "client" ? e.peer_name.trim() : "",
+          tls_min: values.tls_min,
+          enabled: values.enabled,
         });
+      }
+      form.resetDirty();
       await onSaved();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
+  const algorithms = (
+    <NativeSelect
+      label="密钥算法"
+      data={["ECDSA-P256", "RSA-3072"]}
+      {...form.getInputProps("algorithm")}
+    />
+  );
   return (
-    <Modal
-      title={
-        editor.type === "ca"
-          ? "创建证书颁发机构"
-          : editor.type === "cert"
-            ? "签发证书"
-            : t
-              ? "编辑隧道配置"
-              : "新建隧道配置"
-      }
-      onClose={close}
-    >
-      <form onSubmit={submit} key={editor.type}>
-        {editor.type === "ca" && (
-          <>
-            <Field label="CA 名称">
-              <input
-                name="name"
-                placeholder="例如：Production Root CA"
-                required
-                maxLength={80}
-                autoFocus
-              />
-            </Field>
-            <Field label="组织名称">
-              <input
-                name="organization"
-                placeholder="例如：Acme Infrastructure"
-                required
-                maxLength={120}
-              />
-            </Field>
-            <div className="form-grid">
-              <Field label="密钥算法">
-                <select name="algorithm" defaultValue="ECDSA-P256">
-                  <option>ECDSA-P256</option>
-                  <option>RSA-3072</option>
-                </select>
-              </Field>
-              <Field label="有效期（天）">
-                <input
-                  name="days"
-                  type="number"
-                  required
-                  min={1}
-                  max={7300}
-                  defaultValue={3650}
-                />
-              </Field>
-            </div>
-          </>
-        )}
-        {editor.type === "cert" && (
-          <>
-            <Field label="签发 CA">
-              <select name="ca_id" required defaultValue="">
-                <option value="" disabled>
-                  选择证书颁发机构
-                </option>
-                {usableCAs.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {!usableCAs.length && (
-              <div className="inline-warning">
-                需要先创建有效的 CA。
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => onSwitch("ca")}
-                >
-                  创建 CA
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            )}
-            <div className="form-grid">
-              <Field label="证书名称">
-                <input
-                  name="name"
-                  required
-                  maxLength={80}
-                  placeholder="例如：redis-server"
-                />
-              </Field>
-              <Field label="通用名称（CN）">
-                <input
-                  name="common_name"
-                  required
-                  maxLength={64}
-                  placeholder="例如：redis.example.com"
-                />
-              </Field>
-            </div>
-            <Field label="证书用途">
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={purpose === "server" ? "selected" : ""}
-                  onClick={() => setPurpose("server")}
-                >
-                  <Server size={16} />
-                  服务端认证
-                </button>
-                <button
-                  type="button"
-                  className={purpose === "client" ? "selected" : ""}
-                  onClick={() => setPurpose("client")}
-                >
-                  <Globe2 size={16} />
-                  客户端认证
-                </button>
-              </div>
-            </Field>
-            <Field
-              label={`主题备用名称（SAN）${purpose === "client" ? " · 可选" : ""}`}
-              hint={
-                purpose === "server"
-                  ? "服务端必填；DNS 或 IP，逗号或换行分隔。"
-                  : "DNS 或 IP，逗号或换行分隔。"
-              }
-            >
-              <textarea
-                name="sans"
-                placeholder="redis.example.com, 10.0.0.10"
-                required={purpose === "server"}
-                rows={2}
-                maxLength={16000}
-              />
-            </Field>
-            <CertificateHelp context="certificate" />
-            <div className="form-grid">
-              <Field label="密钥算法">
-                <select name="algorithm" defaultValue="ECDSA-P256">
-                  <option>ECDSA-P256</option>
-                  <option>RSA-3072</option>
-                </select>
-              </Field>
-              <Field label="有效期（天）" hint="不能超过 CA 剩余有效期。">
-                <input
-                  name="days"
-                  type="number"
-                  required
-                  min={1}
-                  max={825}
-                  defaultValue={365}
-                />
-              </Field>
-            </div>
-          </>
-        )}
-        {editor.type === "tunnel" && (
-          <>
-            <Field label="隧道名称" hint="1–64 位字母、数字、_ 或 -。">
-              <input
-                name="name"
-                defaultValue={t?.name}
-                required
-                maxLength={64}
-                pattern="[a-zA-Z0-9][a-zA-Z0-9_\-]*"
-                placeholder="例如：redis-production"
-                autoFocus
-              />
-            </Field>
-            <Field label="描述 · 可选">
-              <input
-                name="description"
-                defaultValue={t?.description}
-                maxLength={500}
-                placeholder="可选"
-              />
-            </Field>
-            <Field label="工作模式">
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={mode === "server" ? "selected" : ""}
-                  onClick={() => setMode("server")}
-                >
-                  <Server size={16} />
-                  服务端
-                </button>
-                <button
-                  type="button"
-                  className={mode === "client" ? "selected" : ""}
-                  onClick={() => setMode("client")}
-                >
-                  <Globe2 size={16} />
-                  客户端
-                </button>
-              </div>
-            </Field>
-            <div className="form-grid" key={mode}>
-              <Field label="监听地址（accept）">
-                <input
-                  name="accept"
-                  defaultValue={
-                    t?.mode === mode
-                      ? t.accept
-                      : mode === "server"
-                        ? "0.0.0.0:6380"
-                        : "127.0.0.1:16379"
-                  }
-                  required
-                  placeholder="127.0.0.1:端口"
-                />
-              </Field>
-              <Field label="转发目标（connect）">
-                <input
-                  name="connect"
-                  defaultValue={
-                    t?.mode === mode
-                      ? t.connect
-                      : mode === "server"
-                        ? "127.0.0.1:6379"
-                        : "redis.example.com:6380"
-                  }
-                  required
-                  placeholder="主机名或 IP:端口"
-                />
-              </Field>
-            </div>
-            <Field label="身份认证证书">
-              <select
-                name="certificate_id"
-                key={mode}
-                required
-                defaultValue={t?.mode === mode ? t.certificate_id : ""}
-              >
-                <option value="" disabled>
-                  选择{mode === "server" ? "服务端" : "客户端"}证书
-                </option>
-                {certificates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {date(c.not_after)} 到期
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {!certificates.length && (
-              <div className="inline-warning">
-                暂无可用的{mode === "server" ? "服务端" : "客户端"}证书。
-                <button
-                  className="text-link"
-                  type="button"
-                  onClick={() => onSwitch("cert")}
-                >
-                  签发证书
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            )}
-            {mode === "client" && (
-              <>
-                <Field
-                  label="服务端证书身份（DNS / IP）"
-                  hint="填写预期服务端 SAN 中的域名或 IP，可与转发目标不同。"
-                >
-                  <input
-                    name="peer_name"
-                    defaultValue={t?.peer_name}
+    <>
+      <Modal
+        title={
+          editor.type === "ca"
+            ? "创建证书颁发机构"
+            : editor.type === "cert"
+              ? "签发证书"
+              : t
+                ? "编辑隧道配置"
+                : "新建隧道配置"
+        }
+        onClose={() => guard.requestClose(onClose)}
+        closeOnClickOutside={false}
+        closeOnEscape={!guard.confirming}
+        trapFocus={!guard.confirming}
+        busy={busy}
+      >
+        <form onSubmit={form.onSubmit(submit)}>
+          <fieldset disabled={busy || guard.confirming} className="form-fields">
+            <Stack gap="md">
+              {editor.type === "ca" && (
+                <>
+                  <TextInput
+                    label="CA 名称"
+                    placeholder="Production Root CA"
                     required
-                    placeholder="redis.example.com"
+                    maxLength={80}
+                    data-autofocus
+                    {...form.getInputProps("name")}
                   />
-                </Field>
-                <CertificateHelp context="client" />
-              </>
-            )}
-            <Field label="最低 TLS 版本">
-              <select name="tls_min" defaultValue={t?.tls_min || "TLSv1.2"}>
-                <option value="TLSv1.2">TLS 1.2</option>
-                <option value="TLSv1.3">TLS 1.3</option>
-              </select>
-            </Field>
-            <label className="checkbox-field">
-              <input
-                name="enabled"
-                type="checkbox"
-                defaultChecked={t?.enabled ?? true}
-              />
-              <span>启用此配置</span>
-            </label>
-          </>
-        )}
-        {error && (
-          <div className="form-error" role="alert">
-            {error}
-          </div>
-        )}
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={close}
-          >
-            取消
-          </button>
-          <button className="button primary" disabled={busy || blocked}>
-            {busy ? (
-              <LoaderCircle size={16} className="spin" />
-            ) : editor.type === "ca" ? (
-              <ShieldCheck size={16} />
-            ) : editor.type === "cert" ? (
-              <KeyRound size={16} />
-            ) : (
-              <Check size={16} />
-            )}
-            {busy
-              ? "正在保存…"
-              : editor.type === "ca"
+                  <TextInput
+                    label="组织名称"
+                    placeholder="Acme Infrastructure"
+                    required
+                    maxLength={120}
+                    {...form.getInputProps("organization")}
+                  />
+                  <div className="form-grid">
+                    {algorithms}
+                    <NumberInput
+                      label="有效期（天）"
+                      required
+                      min={1}
+                      max={7300}
+                      allowDecimal={false}
+                      allowNegative={false}
+                      {...form.getInputProps("days")}
+                    />
+                  </div>
+                </>
+              )}
+              {editor.type === "cert" && (
+                <>
+                  <NativeSelect
+                    label="签发 CA"
+                    required
+                    {...form.getInputProps("ca_id")}
+                  >
+                    <option value="" disabled>
+                      选择证书颁发机构
+                    </option>
+                    {usableCAs.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {!usableCAs.length && (
+                    <Alert color="yellow">
+                      需要先创建有效的 CA。
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => switchEditor("ca")}
+                      >
+                        创建 CA
+                      </Button>
+                    </Alert>
+                  )}
+                  <div className="form-grid">
+                    <TextInput
+                      label="证书名称"
+                      required
+                      maxLength={80}
+                      {...form.getInputProps("name")}
+                    />
+                    <TextInput
+                      label="通用名称（CN）"
+                      required
+                      maxLength={64}
+                      {...form.getInputProps("common_name")}
+                    />
+                  </div>
+                  <div>
+                    <div className="control-label" id="purpose-label">
+                      证书用途
+                    </div>
+                    <SegmentedControl
+                      fullWidth
+                      aria-labelledby="purpose-label"
+                      data={[
+                        { label: "服务端认证", value: "server" },
+                        { label: "客户端认证", value: "client" },
+                      ]}
+                      {...form.getInputProps("purpose")}
+                    />
+                  </div>
+                  <Textarea
+                    label={`主题备用名称（SAN）${form.values.purpose === "client" ? " · 可选" : ""}`}
+                    description={
+                      form.values.purpose === "server"
+                        ? "服务端必填；DNS 或 IP，逗号或换行分隔。"
+                        : "DNS 或 IP，逗号或换行分隔。"
+                    }
+                    required={form.values.purpose === "server"}
+                    placeholder="redis.example.com, 10.0.0.10"
+                    minRows={2}
+                    maxLength={16000}
+                    {...form.getInputProps("sans")}
+                  />
+                  <CertificateHelp context="certificate" />
+                  <div className="form-grid">
+                    {algorithms}
+                    <NumberInput
+                      label="有效期（天）"
+                      description="不能超过 CA 剩余有效期。"
+                      required
+                      min={1}
+                      max={825}
+                      allowDecimal={false}
+                      allowNegative={false}
+                      {...form.getInputProps("days")}
+                    />
+                  </div>
+                </>
+              )}
+              {editor.type === "tunnel" && (
+                <>
+                  <TextInput
+                    label="隧道名称"
+                    description="1–64 位字母、数字、_ 或 -。"
+                    required
+                    maxLength={64}
+                    pattern="[a-zA-Z0-9][a-zA-Z0-9_\-]*"
+                    data-autofocus
+                    {...form.getInputProps("name")}
+                  />
+                  <TextInput
+                    label="描述 · 可选"
+                    maxLength={500}
+                    {...form.getInputProps("description")}
+                  />
+                  <div>
+                    <div className="control-label" id="mode-label">
+                      工作模式
+                    </div>
+                    <SegmentedControl
+                      fullWidth
+                      aria-labelledby="mode-label"
+                      data={[
+                        { label: "服务端", value: "server" },
+                        { label: "客户端", value: "client" },
+                      ]}
+                      {...form.getInputProps("mode")}
+                    />
+                  </div>
+                  <div className="form-grid">
+                    <TextInput
+                      label="监听地址（accept）"
+                      required
+                      {...form.getInputProps(`endpoints.${mode}.accept`)}
+                    />
+                    <TextInput
+                      label="转发目标（connect）"
+                      required
+                      {...form.getInputProps(`endpoints.${mode}.connect`)}
+                    />
+                  </div>
+                  <NativeSelect
+                    label="身份认证证书"
+                    required
+                    {...form.getInputProps(`endpoints.${mode}.certificate_id`)}
+                  >
+                    <option value="" disabled>
+                      选择{mode === "server" ? "服务端" : "客户端"}证书
+                    </option>
+                    {certificates.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} · {date(c.not_after)} 到期
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {!certificates.length && (
+                    <Alert color="yellow">
+                      暂无可用的{mode === "server" ? "服务端" : "客户端"}证书。
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => switchEditor("cert")}
+                      >
+                        签发证书
+                      </Button>
+                    </Alert>
+                  )}
+                  {mode === "client" && (
+                    <>
+                      <TextInput
+                        label="服务端证书身份（DNS / IP）"
+                        description="填写预期服务端 SAN 中的域名或 IP，可与转发目标不同。"
+                        required
+                        placeholder="redis.example.com"
+                        {...form.getInputProps("endpoints.client.peer_name")}
+                      />
+                      <CertificateHelp context="client" />
+                    </>
+                  )}
+                  <NativeSelect
+                    label="最低 TLS 版本"
+                    data={[
+                      { value: "TLSv1.2", label: "TLS 1.2" },
+                      { value: "TLSv1.3", label: "TLS 1.3" },
+                    ]}
+                    {...form.getInputProps("tls_min")}
+                  />
+                  <Checkbox
+                    label="启用此配置"
+                    {...form.getInputProps("enabled", { type: "checkbox" })}
+                  />
+                </>
+              )}
+            </Stack>
+          </fieldset>
+          {error && (
+            <Alert color="red" role="alert" mt="md">
+              {error}
+            </Alert>
+          )}
+          <Group justify="flex-end" mt="lg">
+            <Button
+              variant="default"
+              disabled={busy || guard.confirming}
+              onClick={() => guard.requestClose(onClose)}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={busy || guard.confirming || blocked}
+            >
+              {editor.type === "ca"
                 ? "创建 CA"
                 : editor.type === "cert"
                   ? "签发证书"
                   : "保存配置"}
-          </button>
-        </div>
-      </form>
-    </Modal>
+            </Button>
+          </Group>
+        </form>
+      </Modal>
+      {guard.confirmation}
+    </>
   );
 }

@@ -1,6 +1,14 @@
-import { useEffect, useRef, useId, cloneElement, isValidElement } from "react";
+import { useId, cloneElement, isValidElement } from "react";
+import {
+  ActionIcon,
+  Badge as MantineBadge,
+  Button,
+  Modal as MantineModal,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import type { ReactNode, ReactElement } from "react";
-import { Shield, X, Plus } from "lucide-react";
+import { Shield, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { certificateState } from "../api";
 import type { Certificate } from "../api";
@@ -22,11 +30,24 @@ export function Badge({
   kind?: string;
   children: ReactNode;
 }) {
+  const colors: Record<string, string> = {
+    valid: "forest",
+    disabled: "gray",
+    expired: "red",
+    revoked: "red",
+    expiring: "yellow",
+    blue: "blue",
+  };
   return (
-    <span className={`badge badge-${kind}`}>
-      <span className="status-dot" />
+    <MantineBadge
+      className="status-badge"
+      variant="light"
+      color={colors[kind] || "forest"}
+      size="lg"
+      tt="none"
+    >
       {children}
-    </span>
+    </MantineBadge>
   );
 }
 export function CertBadge({ certificate }: { certificate?: Certificate }) {
@@ -59,15 +80,18 @@ export function IconButton({
   danger?: boolean;
 }) {
   return (
-    <button
-      className={`icon-button ${danger ? "danger-text" : ""}`}
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <Icon size={16} />
-    </button>
+    <Tooltip label={label} withArrow>
+      <ActionIcon
+        variant="subtle"
+        color={danger ? "red" : "forest"}
+        aria-label={label}
+        onClick={onClick}
+        disabled={disabled}
+        size="lg"
+      >
+        <Icon size={17} />
+      </ActionIcon>
+    </Tooltip>
   );
 }
 export function Field({
@@ -115,10 +139,14 @@ export function Empty({
       <h3>{title}</h3>
       {description && <p>{description}</p>}
       {action && (
-        <button className="button secondary small" onClick={action}>
-          <Plus size={15} />
+        <Button
+          variant="light"
+          leftSection={<Plus size={15} />}
+          mt="md"
+          onClick={action}
+        >
           {label}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -129,40 +157,48 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  closeOnClickOutside = true,
+  closeOnEscape = true,
+  busy = false,
+  zIndex = 200,
+  trapFocus = true,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  closeOnClickOutside?: boolean;
+  closeOnEscape?: boolean;
+  busy?: boolean;
+  zIndex?: number;
+  trapFocus?: boolean;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    ref.current?.showModal();
-    return () => ref.current?.close();
-  }, []);
   return (
-    <dialog
-      ref={ref}
-      className={`modal ${wide ? "modal-wide" : ""}`}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
+    <MantineModal
+      opened
+      onClose={() => {
+        if (!busy) onClose();
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      title={
+        <Text fw={600} size="lg">
+          {title}
+        </Text>
+      }
+      size={wide ? "lg" : "md"}
+      closeOnClickOutside={closeOnClickOutside && !busy}
+      closeOnEscape={closeOnEscape && !busy}
+      closeButtonProps={{ "aria-label": "关闭对话框", disabled: busy }}
+      returnFocus
+      trapFocus={trapFocus}
+      zIndex={zIndex}
     >
-      <div className="modal-content">
-        <div className="modal-heading">
-          <div>
-            <h2>{title}</h2>
-            {description && <p>{description}</p>}
-          </div>
-          <IconButton icon={X} label="关闭对话框" onClick={onClose} />
-        </div>
-        {children}
-      </div>
-    </dialog>
+      {description && (
+        <Text size="sm" c="dimmed" mb="md">
+          {description}
+        </Text>
+      )}
+      {children}
+    </MantineModal>
   );
 }

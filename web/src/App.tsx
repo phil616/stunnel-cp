@@ -1,3 +1,4 @@
+import { navigateSafely } from "./hooks/useUnsavedChanges";
 import { OverviewPage } from "./pages/OverviewPage";
 import { TunnelsPage } from "./pages/TunnelsPage";
 import { CertificatesPage } from "./pages/CertificatesPage";
@@ -5,7 +6,7 @@ import { AuthoritiesPage } from "./pages/AuthoritiesPage";
 import { AuditPage } from "./pages/AuditPage";
 import { GuidePage } from "./pages/GuidePage";
 import { ReferencePage } from "./pages/ReferencePage";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -89,6 +90,8 @@ export function App() {
     [query, setQuery] = useState(""),
     [searchOpen, setSearchOpen] = useState(false),
     [modeFilter, setModeFilter] = useState("all");
+  const currentPage = useRef(page);
+  currentPage.current = page;
   const notify = useCallback(
     (message: string, error = false) => setToast({ message, error }),
     [],
@@ -124,8 +127,15 @@ export function App() {
     };
     window.addEventListener("session-expired", expire);
     const hash = () => {
-      setPage(pageFromHash());
-      setQuery("");
+      const next = pageFromHash();
+      history.replaceState(null, "", `#${currentPage.current}`);
+      navigateSafely(() => {
+        history.replaceState(null, "", `#${next}`);
+        setPage(next);
+        setEditor(null);
+        setPasswordOpen(false);
+        setQuery("");
+      });
     };
     window.addEventListener("hashchange", hash);
     return () => {
@@ -138,13 +148,16 @@ export function App() {
     const timer = setTimeout(() => setToast(null), 4500);
     return () => clearTimeout(timer);
   }, [toast]);
-  const go = (next: Page) => {
-    location.hash = next;
-    setPage(next);
-    setQuery("");
-    setMobile(false);
-    setSearchOpen(false);
-  };
+  const go = (next: Page) =>
+    navigateSafely(() => {
+      history.pushState(null, "", `#${next}`);
+      setPage(next);
+      setQuery("");
+      setMobile(false);
+      setSearchOpen(false);
+      setEditor(null);
+      setPasswordOpen(false);
+    });
   const act = async (
     action: () => Promise<unknown>,
     success?: string,
@@ -590,6 +603,7 @@ export function App() {
       )}
       {editor && (
         <EditorModal
+          key={`${editor.type}:${editor.tunnel?.id || "new"}`}
           editor={editor}
           snapshot={snapshot}
           onClose={() => setEditor(null)}
@@ -751,6 +765,8 @@ export function App() {
       {confirmation && (
         <Modal
           title={confirmation.title}
+          closeOnClickOutside={false}
+          busy={busyConfirm}
           onClose={() => {
             if (!busyConfirm) setConfirmation(null);
           }}

@@ -1,9 +1,10 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
-import { KeyRound, LoaderCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import { Alert, Button, Group, PasswordInput, Stack } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { api } from "../api";
 import { errorMessage } from "../format";
-import { Field, Modal } from "./ui";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
+import { Modal } from "./ui";
 export function PasswordModal({
   onClose,
   onSaved,
@@ -13,88 +14,106 @@ export function PasswordModal({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  const submitting = useRef(false);
+  const form = useForm({
+    initialValues: {
+      current_password: "",
+      new_password: "",
+      confirm_password: "",
+    },
+    validate: {
+      confirm_password: (value, values) =>
+        value === values.new_password ? null : "两次输入的新密码不一致",
+    },
+  });
+  const guard = useUnsavedChanges(
+    form.isDirty(),
+    busy,
+    () => submitting.current,
+  );
+  async function submit(values: typeof form.values) {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
-      const password = String(data.get("new_password"));
-      if (password !== data.get("confirm_password"))
-        throw new Error("两次输入的新密码不一致");
       await api("/account/password", "POST", {
-        current_password: data.get("current_password"),
-        new_password: password,
+        current_password: values.current_password,
+        new_password: values.new_password,
       });
+      form.reset();
       onSaved();
-    } catch (error) {
-      setError(errorMessage(error));
+    } catch (e) {
+      setError(errorMessage(e));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
   return (
-    <Modal
-      title="修改管理员密码"
-      description="修改后其他会话失效。"
-      onClose={() => {
-        if (!busy) onClose();
-      }}
-    >
-      <form onSubmit={submit}>
-        <Field label="当前密码">
-          <input
-            name="current_password"
-            type="password"
-            autoComplete="current-password"
-            required
-            autoFocus
-          />
-        </Field>
-        <Field label="新密码" hint="12–72 字节。">
-          <input
-            name="new_password"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={72}
-            required
-          />
-        </Field>
-        <Field label="确认新密码">
-          <input
-            name="confirm_password"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={72}
-            required
-          />
-        </Field>
-        {error && (
-          <div className="form-error" role="alert">
-            {error}
-          </div>
-        )}
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={onClose}
-          >
-            取消
-          </button>
-          <button className="button primary" disabled={busy}>
-            {busy ? (
-              <LoaderCircle className="spin" size={15} />
-            ) : (
-              <KeyRound size={15} />
-            )}
-            更新密码
-          </button>
-        </div>
-      </form>
-    </Modal>
+    <>
+      <Modal
+        title="修改管理员密码"
+        description="修改后其他会话失效。"
+        closeOnClickOutside={false}
+        closeOnEscape={!guard.confirming}
+        trapFocus={!guard.confirming}
+        busy={busy}
+        onClose={() => guard.requestClose(onClose)}
+      >
+        <form onSubmit={form.onSubmit(submit)}>
+          <fieldset className="form-fields" disabled={busy || guard.confirming}>
+            <Stack gap="md">
+              <PasswordInput
+                label="当前密码"
+                autoComplete="current-password"
+                required
+                data-autofocus
+                {...form.getInputProps("current_password")}
+              />
+              <PasswordInput
+                label="新密码"
+                description="12–72 字节。"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={72}
+                required
+                {...form.getInputProps("new_password")}
+              />
+              <PasswordInput
+                label="确认新密码"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={72}
+                required
+                {...form.getInputProps("confirm_password")}
+              />
+            </Stack>
+          </fieldset>
+          {error && (
+            <Alert color="red" role="alert" mt="md">
+              {error}
+            </Alert>
+          )}
+          <Group justify="flex-end" mt="lg">
+            <Button
+              variant="default"
+              disabled={busy || guard.confirming}
+              onClick={() => guard.requestClose(onClose)}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={busy || guard.confirming}
+            >
+              更新密码
+            </Button>
+          </Group>
+        </form>
+      </Modal>
+      {guard.confirmation}
+    </>
   );
 }
