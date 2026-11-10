@@ -157,27 +157,6 @@ STCP_TLS_KEY=/etc/stunnel-cp/web-key.pem \
 
 也可以将控制台放在 HTTPS 反向代理后面：后端保持本机监听，设置 `STCP_SECURE_COOKIE=true`，代理保留原始 `Host` 请求头。首次初始化应在控制台向不可信网络开放之前完成。页面位于根路径 `/`，不支持子路径代理。
 
-## GitHub 自动发版
-
-提交到 GitHub 后，推送版本标签即可触发构建和发布：
-
-```bash
-git tag -a v1.2.3 -m "Release v1.2.3"
-git push origin v1.2.3
-```
-
-支持 Linux、macOS、Windows 的 amd64 / arm64；预发布标签如 `v1.3.0-rc.1` 会自动标记为 Prerelease。所有测试和构建通过后才发布，使用内置 `GITHUB_TOKEN`，无需 PAT。详细流程、产物名称和恢复方式见 [发版说明](docs/RELEASING.md)。
-
-## Docker
-
-```bash
-docker compose up --build -d
-```
-
-默认仅绑定宿主机 `127.0.0.1:8080`，使用命名卷持久化数据。镜像为多阶段构建，运行阶段使用 distroless 非 root 用户、只读根文件系统及独立数据卷。
-
-挂载已有宿主目录时，需事先确保目录归 UID/GID `65532:65532` 所有且可写。配置 HTTPS 反向代理时，将 `compose.yaml` 的 `STCP_SECURE_COOKIE` 改为 `"true"`。
-
 ## 安全与备份
 
 - CA 和叶证书私钥采用 **AES-256-GCM** 加密；每条记录的 ID 作为关联数据，防止交换密文。主密钥为随机 32 字节。
@@ -254,9 +233,3 @@ web/
 - Windows：省略 Unix 专用 `foreground`、`pid`。从 [官方安装器](https://www.stunnel.org/downloads.html) 选择可选原生 Console CLI `tstunnel.exe`，携带同版本所需 OpenSSL / 运行时 DLL，在解压目录通过 PowerShell 执行 `.\tstunnel.exe .\stunnel.conf`。无需 GUI 或注册服务。CLI 和 DLL 应放在部署包根目录，勿另建 `config` 子目录；Windows stunnel 会切换到程序目录，仅切换 PowerShell 目录后调用安装目录里的 EXE 会影响配置与相对证书路径。
 
 两种平台均验证证书链、要求对端证书并检查 CRL。ZIP 内 README 包含工作目录、私钥保护、CRL 分发及停止方式，不包含 stunnel 程序或依赖。API 详见 [HTTP API](docs/API.md)。
-
-### 界面与验证
-
-界面使用固定版本的 Mantine 9.8、React 与 Vite，所有静态资源嵌入 Go，无 CDN 依赖。创建 CA、签发证书、隧道编辑及修改密码时，点击遮罩不会关闭表单；有未保存修改时，Esc、关闭、取消和页内导航均需确认，提交中禁止退出或重复提交。模式切换分别保留两组端点草稿，提交失败保留内容；敏感草稿仅在组件内存中。
-
-`npm run test:e2e --prefix web` 验证这些交互和平台导出。CI 同时使用 Linux `stunnel4` 及 Windows 官方 `tstunnel.exe` 测试实际 mTLS 转发、客户端证书要求、名称校验和 CRL 吊销。Windows 测试脚本为 `.github/scripts/test-stunnel-windows.ps1`，下载官方 5.82 安装器并核对 SHA-256，解压可选 CLI 和匹配 DLL，不安装系统服务。
